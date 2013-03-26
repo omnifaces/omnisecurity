@@ -12,12 +12,19 @@
  */
 package org.omnifaces.security.jaspic.factory;
 
+import static org.omnifaces.security.jaspic.config.ControlFlag.REQUIRED;
+
+import java.util.List;
+import java.util.Map;
+
 import javax.security.auth.message.config.AuthConfigFactory;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
 import org.omnifaces.security.jaspic.OmniServerAuthModule;
+import org.omnifaces.security.jaspic.config.AuthStacksBuilder;
+import org.omnifaces.security.jaspic.config.Module;
 
 /**
  * This listener automatically registers the SAM when the web application is starting.
@@ -35,11 +42,53 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 	@Override
 	public void contextInitialized(ServletContextEvent sce) {
 		
+		// Example
+		
+		/*
+		new AuthStacksBuilder()
+			
+			.stack()
+				.name("jsf-form")
+				.module()
+					.serverAuthModule(new OmniServerAuthModule())
+					.controlFlag(REQUIRED)
+					.add()
+					
+				.module()
+					.serverAuthModule(new OmniServerAuthModule())
+					.controlFlag(OPTIONAL)
+					.add()
+				.add()
+				
+			.stack()
+				.name("OpenID-Google")
+				.module()
+					.serverAuthModule(new OmniServerAuthModule())
+					.controlFlag(REQUIRED)
+					.add()
+				.add()
+			.build();
+			*/
+		
+		 Map<String, List<Module>> stacks = new AuthStacksBuilder()
+		 
+		 	.stack()
+		 		.name("jsf-form")
+		 		.module()
+					.serverAuthModule(new OmniServerAuthModule())
+					.controlFlag(REQUIRED)
+					.add()
+				.add()
+				
+			.build();
+		 		
+		
 		// Register the factory-factory-factory for the SAM
 		AuthConfigFactory.getFactory().registerConfigProvider(
-			new OmniAuthConfigProvider(), 
+			new OmniAuthConfigProvider(stacks), 
 			"HttpServlet", null, "OmniSecurity authentication config provider"
 		);
+				
 		
 		// Register the SAM separately as a filter
 		sce.getServletContext().addFilter(

@@ -13,6 +13,8 @@
 package org.omnifaces.security.jaspic.factory;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -23,7 +25,9 @@ import javax.security.auth.message.ServerAuth;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
 
-import org.omnifaces.security.jaspic.OmniServerAuthModule;
+import org.omnifaces.security.jaspic.AuthResult;
+import org.omnifaces.security.jaspic.Jaspic;
+import org.omnifaces.security.jaspic.config.Module;
 
 /**
  * The Server Authentication Context is an extra (required) indirection between the Application Server and the actual Server Authentication Module
@@ -35,26 +39,69 @@ import org.omnifaces.security.jaspic.OmniServerAuthModule;
  */
 public class OmniServerAuthContext implements ServerAuthContext {
 
-	private ServerAuthModule serverAuthModule;
+	private Map<String, List<Module>> stacks;
 
-	public OmniServerAuthContext(CallbackHandler handler) throws AuthException {
-		serverAuthModule = new OmniServerAuthModule();
-		serverAuthModule.initialize(null, null, handler, Collections.<String, String> emptyMap());
+	public OmniServerAuthContext(CallbackHandler handler, Map<String, List<Module>> stacks) throws AuthException {
+		
+		for (List<Module> modules : stacks.values()) {
+			for (Module module : modules) {
+				module.getServerAuthModule().initialize(null, null, handler, Collections.<String, String> emptyMap());
+			}
+		}
 	}
 
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-		return serverAuthModule.validateRequest(messageInfo, clientSubject, serviceSubject);
+		
+		boolean requiredFailed = false;
+		AuthResult finalAuthResult = new AuthResult();
+		
+		for (Module module : stacks.values().iterator().next()) { // tmp
+			
+			AuthResult authResult = Jaspic.validateRequest(module.getServerAuthModule(), messageInfo, clientSubject, serviceSubject);
+			finalAuthResult.add(authResult);
+			
+			switch (module.getControlFlag()) {
+				
+				case REQUIRED:
+					if (authResult.isFailed()) {
+						requiredFailed = true;
+					}
+					break;
+					
+				case REQUISITE:
+					if (authResult.isFailed()) {
+						return finalAuthResult.throwOrFail();
+					}
+					break;
+					
+				case SUFFICIENT:
+					if (!authResult.isFailed() && !requiredFailed) {
+						return authResult.getAuthStatus();
+					}
+					break;
+			}
+		}
+		
+		return finalAuthResult.throwOrReturnStatus();
 	}
 
 	@Override
 	public AuthStatus secureResponse(MessageInfo messageInfo, Subject serviceSubject) throws AuthException {
-		return serverAuthModule.secureResponse(messageInfo, serviceSubject);
+		
+		AuthStatus authStatus = null;
+		for (Module module : stacks.values().iterator().next()) { // tmp
+			authStatus = module.getServerAuthModule().secureResponse(messageInfo, serviceSubject);
+		}
+		
+		return authStatus;
 	}
 
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-		serverAuthModule.cleanSubject(messageInfo, subject);
+		for (Module module : stacks.values().iterator().next()) { // tmp
+			module.getServerAuthModule().cleanSubject(messageInfo, subject);
+		}
 	}
 
 }

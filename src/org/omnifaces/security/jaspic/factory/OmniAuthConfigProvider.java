@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.factory;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
@@ -20,6 +21,8 @@ import javax.security.auth.message.config.AuthConfigFactory;
 import javax.security.auth.message.config.AuthConfigProvider;
 import javax.security.auth.message.config.ClientAuthConfig;
 import javax.security.auth.message.config.ServerAuthConfig;
+
+import org.omnifaces.security.jaspic.config.Module;
 
 /**
  * This class is a kind of meta-factory or factory-factory for delegates to a SAM, from which we can obtain factories for the server
@@ -35,8 +38,10 @@ public class OmniAuthConfigProvider implements AuthConfigProvider {
 	private static final String CALLBACK_HANDLER_PROPERTY_NAME = "authconfigprovider.client.callbackhandler";
 
 	private Map<String, String> providerProperties;
+	private Map<String, List<Module>> stacks;
 
-	public OmniAuthConfigProvider() {
+	public OmniAuthConfigProvider(Map<String, List<Module>> stacks) {
+		this.stacks = stacks;
 	}
 
 	/**
@@ -62,7 +67,7 @@ public class OmniAuthConfigProvider implements AuthConfigProvider {
 	 */
 	@Override
 	public ServerAuthConfig getServerAuthConfig(String layer, String appContext, CallbackHandler handler) throws AuthException, SecurityException {
-		return new OmniServerAuthConfig(layer, appContext, handler == null ? createDefaultCallbackHandler() : handler, providerProperties);
+		return new OmniServerAuthConfig(layer, appContext, handler == null ? createDefaultCallbackHandler() : handler, providerProperties, stacks);
 	}
 
 	@Override

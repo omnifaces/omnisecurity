@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.factory;
 
+import java.util.List;
 import java.util.Map;
 
 import javax.security.auth.Subject;
@@ -21,6 +22,8 @@ import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.config.ServerAuthConfig;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
+
+import org.omnifaces.security.jaspic.config.Module;
 
 /**
  * This class functions as a kind of factory for {@link ServerAuthContext} instances, which are delegates for the actual {@link ServerAuthModule}
@@ -32,13 +35,15 @@ public class OmniServerAuthConfig implements ServerAuthConfig {
 	private String layer;
 	private String appContext;
 	private CallbackHandler handler;
+	private Map<String, List<Module>> stacks;
 	private Map<String, String> providerProperties;
 
-	public OmniServerAuthConfig(String layer, String appContext, CallbackHandler handler, Map<String, String> providerProperties) {
+	public OmniServerAuthConfig(String layer, String appContext, CallbackHandler handler, Map<String, String> providerProperties, Map<String, List<Module>> stacks) {
 		this.layer = layer;
 		this.appContext = appContext;
 		this.handler = handler;
 		this.providerProperties = providerProperties;
+		this.stacks = stacks;
 	}
 
 	/**
@@ -50,7 +55,7 @@ public class OmniServerAuthConfig implements ServerAuthConfig {
 	public ServerAuthContext getAuthContext(String authContextID, Subject serviceSubject, @SuppressWarnings("rawtypes") Map properties)
 			throws AuthException {
 
-		return new OmniServerAuthContext(handler);
+		return new OmniServerAuthContext(handler, stacks);
 	}
 
 	@Override

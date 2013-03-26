@@ -17,6 +17,9 @@ import static org.omnifaces.security.jaspic.HttpServerAuthModule.IS_LOGOUT_KEY;
 
 import java.io.IOException;
 
+import javax.security.auth.Subject;
+import javax.security.auth.message.MessageInfo;
+import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -85,6 +88,19 @@ public final class Jaspic {
 		} finally {
 			request.removeAttribute(IS_LOGOUT_KEY);
 		}
+	}
+	
+	public static AuthResult validateRequest(ServerAuthModule serverAuthModule,	MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) {
+		
+		AuthResult authResult = new AuthResult();
+		
+		try {
+			authResult.setAuthStatus(serverAuthModule.validateRequest(messageInfo, clientSubject, serviceSubject));
+		} catch (Exception exception) {
+			authResult.setException(exception);
+		}
+		
+		return authResult;
 	}
 	
 	
