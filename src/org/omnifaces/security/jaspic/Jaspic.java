@@ -12,13 +12,19 @@
  */
 package org.omnifaces.security.jaspic;
 
-import static org.omnifaces.security.jaspic.HttpServerAuthModule.IS_AUTHENTICATION_KEY;
+import static java.lang.Boolean.TRUE;
 import static org.omnifaces.security.jaspic.HttpServerAuthModule.IS_LOGOUT_KEY;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.security.auth.Subject;
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.message.MessageInfo;
+import javax.security.auth.message.callback.CallerPrincipalCallback;
+import javax.security.auth.message.callback.GroupPrincipalCallback;
 import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -36,6 +42,10 @@ import org.omnifaces.util.Faces;
  *
  */
 public final class Jaspic {
+	
+	public static final String IS_AUTHENTICATION_KEY = "org.omnifaces.security.message.request.isAuthentication";
+	public static final String LOGGEDIN_USERNAME_KEY = "org.omnifaces.security.message.loggedin.username";
+	public static final String LOGGEDIN_ROLES_KEY = "org.omnifaces.security.message.loggedin.roles";
 
 	private Jaspic() {}
 		
@@ -101,6 +111,50 @@ public final class Jaspic {
 		}
 		
 		return authResult;
+	}
+	
+	public static boolean isRegisterSession(MessageInfo messageInfo) {
+		return Boolean.valueOf((String)messageInfo.getMap().get("javax.servlet.http.registerSession"));
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static void setRegisterSession(MessageInfo messageInfo, String userName, List<String> roles) {
+		messageInfo.getMap().put("javax.servlet.http.registerSession", TRUE.toString());
+		
+		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
+		request.setAttribute(LOGGEDIN_USERNAME_KEY, userName);
+		// TODO: check for existing roles and add
+		request.setAttribute(LOGGEDIN_ROLES_KEY, roles);
+	}
+	
+	public static boolean isAuthenticationRequest(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(IS_AUTHENTICATION_KEY));
+	}
+	
+	public static void notifyContainerAboutLogin(Subject clientSubject, CallbackHandler handler, String userName, List<String> roles) {
+		
+		// Create a handler (kind of directive) to add the caller principal (AKA user principal =basically user name, or user id) that
+		// the authenticator provides.
+		//
+		// This will be the name of the principal returned by e.g. HttpServletRequest#getUserPrincipal
+		CallerPrincipalCallback callerPrincipalCallback = new CallerPrincipalCallback(clientSubject, userName);
+		
+		// Create a handler to add the groups (AKA roles) that the authenticator provides. 
+		//
+		// This is what e.g. HttpServletRequest#isUserInRole and @RolesAllowed for
+		GroupPrincipalCallback groupPrincipalCallback = new GroupPrincipalCallback(clientSubject, roles.toArray(new String[roles.size()]));
+		
+		try {
+			// Execute the handlers we created above. 
+			//
+			// This will typically add the provided principal and roles in an application server specific way to the JAAS Subject.
+			// (it could become entries in a hash table inside the subject, or individual principles, or nested group principles etc.
+			handler.handle(new Callback[] { callerPrincipalCallback, groupPrincipalCallback });
+			
+		} catch (IOException | UnsupportedCallbackException e) {
+			// Should not happen
+			throw new IllegalStateException(e);
+		}
 	}
 	
 	

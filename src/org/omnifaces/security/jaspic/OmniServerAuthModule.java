@@ -13,35 +13,34 @@
 package org.omnifaces.security.jaspic;
 
 import static java.lang.Boolean.TRUE;
-import static java.util.Collections.unmodifiableList;
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.cdi.Beans.getReference;
+import static org.omnifaces.security.jaspic.Jaspic.notifyContainerAboutLogin;
+import static org.omnifaces.security.jaspic.Jaspic.setRegisterSession;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.enterprise.inject.spi.BeanManager;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthStatus;
+import javax.security.auth.message.MessageInfo;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import org.omnifaces.security.cdi.Beans;
-import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
 import org.omnifaces.security.jaspic.request.HttpServletRequestDelegator;
-import org.omnifaces.security.jaspic.request.RequestDataDAO;
+import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
 import org.omnifaces.security.jaspic.request.RequestData;
+import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.Authenticator;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
@@ -53,8 +52,6 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  */
 public class OmniServerAuthModule extends HttpServerAuthModule {
 	
-	private static final String AUTHENTICATOR_SESSION_NAME = "org.omnifaces.security.jaspic.Authenticator";
-	
 	private final RequestDataDAO requestDAO = new RequestDataDAO();
 	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
 	
@@ -65,23 +62,12 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 	}
 	
 	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, Subject clientSubject, CallbackHandler handler, boolean isProtectedResource) {
-				
-		// Check to see if we're already authenticated.
-		//
-		// With JASPIC, the container doesn't remember authentication data between requests and we have thus have to
-		// re-authenticate before every request. It's important to skip this step if authentication is explicitly requested, otherwise
-		// we risk re-authenticating instead of processing a new login request.
-		if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
-			return SUCCESS;
-		}
-		
-		
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject, CallbackHandler handler, boolean isProtectedResource) {
 			
 		// Check to see if this is a request from user code to login
 		//
 		// In the case of this SAM, it means a managed bean or the filter method of this class has called request#authenticate (via Jaspic#authenticate)
-		switch (isLoginRequest(request, response, clientSubject, handler)) {
+		switch (isLoginRequest(request, response, messageInfo, clientSubject, handler)) {
 		
 			case LOGIN_SUCCESS:
 		
@@ -181,22 +167,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 		return SEND_CONTINUE;
 	}
 	
-	private boolean canReAuthenticate(HttpServletRequest request, Subject clientSubject, CallbackHandler handler) {
-		
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			AuthenticationData authenticationData = (AuthenticationData) session.getAttribute(AUTHENTICATOR_SESSION_NAME);
-			if (authenticationData != null) {
-				notifyContainerAboutLogin(request, clientSubject, handler, authenticationData.getUserName(), authenticationData.getApplicationRoles());
-				
-				return true;
-			}
-		}
-		
-		return false;
-	}
-	
-	private LoginResult isLoginRequest(HttpServletRequest request, HttpServletResponse response, Subject clientSubject, CallbackHandler handler) {
+	private LoginResult isLoginRequest(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject, CallbackHandler handler) {
 		Delegators delegators = tryGetDelegators();
 		
 		// This SAM is supposed to work following a call to HttpServletRequest#authenticate. Such call is in-context of the component executing it,
@@ -239,15 +210,10 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			
 			if (authenticated) {
 				
-				notifyContainerAboutLogin(request, clientSubject, handler, authenticator.getUserName(), authenticator.getApplicationRoles());
+				notifyContainerAboutLogin(clientSubject, handler, authenticator.getUserName(), authenticator.getApplicationRoles());
 				
-				// Since CDI is not universally available when this SAM is called at the beginning of a request, we
-				// explicitly store our authenticator bean in the HTTP session, so we can later on (the next requests) retrieve it
-				// to re-authenticate.
-				request.getSession().setAttribute(
-					AUTHENTICATOR_SESSION_NAME, 
-					new AuthenticationData(authenticator.getUserName(), authenticator.getApplicationRoles())
-				);
+				// Ask the runtime to remember the authenticated details for the duration of the http session.
+				setRegisterSession(messageInfo, authenticator.getUserName(), authenticator.getApplicationRoles());
 				
 				if (tokenAuthenticator != null && TRUE.equals(request.getAttribute(REMEMBERME_KEY))) {
 					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
@@ -298,25 +264,5 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			return tokenAuthenticator;
 		}
 	}
-	
-	private class AuthenticationData {
-
-		private final String userName;
-		private final List<String> applicationRoles;
-
-		public AuthenticationData(String userName, List<String> applicationRoles) {
-			this.userName = userName;
-			this.applicationRoles = unmodifiableList(new ArrayList<>(applicationRoles));
-		}
-
-		public String getUserName() {
-			return userName;
-		}
-
-		public List<String> getApplicationRoles() {
-			return applicationRoles;
-		}
-	}
-
 	
 }

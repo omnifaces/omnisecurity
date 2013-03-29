@@ -12,26 +12,20 @@
  */
 package org.omnifaces.security.jaspic;
 
-import static java.lang.Boolean.TRUE;
 import static javax.security.auth.message.AuthStatus.FAILURE;
 import static javax.security.auth.message.AuthStatus.SEND_SUCCESS;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.util.Utils.coalesce;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 import javax.security.auth.Subject;
-import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.MessagePolicy;
-import javax.security.auth.message.callback.CallerPrincipalCallback;
-import javax.security.auth.message.callback.GroupPrincipalCallback;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.Filter;
@@ -52,10 +46,10 @@ import javax.servlet.http.HttpServletResponse;
 public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 	
 	public static final String IS_LOGOUT_KEY = "org.omnifaces.security.message.request.isLogout";
-	public static final String IS_AUTHENTICATION_KEY = "org.omnifaces.security.message.request.isAuthentication";
 	public static final String USERNAME_KEY = "org.omnifaces.security.message.request.username";
 	public static final String PASSWORD_KEY = "org.omnifaces.security.message.request.password";
 	public static final String REMEMBERME_KEY = "org.omnifaces.security.message.request.rememberme";
+	
 	
 	// Key in the MessageInfo Map that when present AND set to true indicated a protected resource is being accessed.
 	// When the resource is not protected, GlassFish omits the key altogether. WebSphere does insert the key and sets
@@ -98,7 +92,7 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 		if (request.getAttribute(IS_LOGOUT_KEY) != null) {
 			status = logout(request, response, clientSubject);
 		} else {
-			status = validateHttpRequest(request, response, clientSubject, handler, isProtectedResource);
+			status = validateHttpRequest(request, response, messageInfo, clientSubject, serviceSubject, handler, isProtectedResource);
 		}
 		
 		if (status == FAILURE) {
@@ -153,36 +147,7 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 		
 	}
 	
-	public boolean isAuthenticationRequest(HttpServletRequest request) {
-		return TRUE.equals(request.getAttribute(IS_AUTHENTICATION_KEY));
-	}
-	
-	public void notifyContainerAboutLogin(HttpServletRequest request, Subject clientSubject, CallbackHandler handler, String userName, List<String> roles) {
-		
-		// Create a handler (kind of directive) to add the caller principal (AKA user principal =basically user name, or user id) that
-		// the authenticator provides.
-		//
-		// This will be the name of the principal returned by e.g. HttpServletRequest#getUserPrincipal
-		CallerPrincipalCallback callerPrincipalCallback = new CallerPrincipalCallback(clientSubject, userName);
-		
-		// Create a handler to add the groups (AKA roles) that the authenticator provides. 
-		//
-		// This is what e.g. HttpServletRequest#isUserInRole and @RolesAllowed for
-		GroupPrincipalCallback groupPrincipalCallback = new GroupPrincipalCallback(clientSubject, roles.toArray(new String[roles.size()]));
 
-		
-		try {
-			// Execute the handlers we created above. 
-			//
-			// This will typically add the provided principal and roles in an application server specific way to the JAAS Subject.
-			// (it could become entries in a hash table inside the subject, or individual principles, or nested group principles etc.
-			handler.handle(new Callback[] { callerPrincipalCallback, groupPrincipalCallback });
-			
-		} catch (IOException | UnsupportedCallbackException e) {
-			// Should not happen
-			throw new IllegalStateException(e);
-		}
-	}
 	
 	
 	public boolean notNull(Object... objects) {

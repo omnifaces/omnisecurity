@@ -34,7 +34,7 @@ public class AuthResult {
 		if (!authResult.isFailed()) {
 			authStatus = authResult.getAuthStatus();
 		} else if (authResult.getException() != null) {
-			if (exception != null) {
+			if (exception == null) {
 				exception = authResult.getException();
 			} else {
 				exception.addSuppressed(authResult.getException());
