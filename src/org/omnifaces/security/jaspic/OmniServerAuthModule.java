@@ -22,22 +22,19 @@ import static org.omnifaces.security.jaspic.Jaspic.setRegisterSession;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
-
-import java.io.IOException;
+import static org.omnifaces.security.jaspic.Utils.notNull;
+import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import javax.enterprise.inject.spi.BeanManager;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.omnifaces.security.cdi.Beans;
-import org.omnifaces.security.jaspic.request.HttpServletRequestDelegator;
 import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
 import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
@@ -93,63 +90,9 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 				//       return only means not to process the handler.
 				return SEND_FAILURE; 
 		}
-		
-		
-		
-		// Check to see if this request is to a protected resource
-		//
-		// We'll save the current request here, so we can redirect to the original URL after
-		// authentication succeeds and when we start processing that URL wrap the request
-		// with one containing the original headers, cookies, etc.
-		if (isProtectedResource) {
-			
-			requestDAO.save(request);
-			redirect(response, getBaseURL(request) + "/login.xhtml");
-						
-			return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
-		}
 
-		// Not already authenticated, no login request and no protected resource. Just continue.
+		// No login request and no protected resource. Just continue.
 		return SUCCESS;
-	}
-	
-	/**
-	 * When access to the request resource is granted, this method will be invoked after validateHttpRequest.
-	 * <p>
-	 * The reason for this extra method is that in this method CDI and EJB are available, while in validateHttpRequest this is
-	 * for most servers not the case.
-	 * <p>
-	 * Additionally, in this method we can wrap the request if needed. This should be possible in validateHttpRequest as well, but
-	 * in practice no known JASPIC implementation actually supports this.
-	 * 
-	 */
-	@Override
-	public void doFilterHttp(final HttpServletRequest request, final HttpServletResponse response, final FilterChain chain) throws IOException, ServletException {
-				
-		// See if there was a saved request that matches the current request and restore
-		// that request by wrapping the current request.
-		//
-		// Note that it doesn't seem possible to do this in a portable way in validateHttpRequest
-		RequestData requestData = requestDAO.get(request);
-		Cookie cookie = cookieDAO.get(request);
-		HttpServletRequest newRequest = request;
-		
-		if (requestData != null) {
-			
-			if (requestData.matchesRequest(request)) {
-				newRequest = new HttpServletRequestDelegator(request, requestData);
-				requestDAO.remove(request);
-			} else if (cookie != null && request.getRequestURL().toString().equals(getBaseURL(request) + "/login.xhtml")) {
-				// There is requestData available and a cookie, as well as a request to the login page.
-				// We use this login page as a cue to do login via the cookie.
-				if (Jaspic.authenticate(request, response)) {
-					// If authentication succeeded, don't process the request to the login page.
-					return;
-				}
-			}
-		}
-		
-		chain.doFilter(newRequest, response);
 	}
 	
 	@Override
@@ -217,10 +160,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 				
 				if (tokenAuthenticator != null && TRUE.equals(request.getAttribute(REMEMBERME_KEY))) {
 					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
-				} else if (cookie != null) {
-					// New login, but user doesn't want "remember me" anymore. Remove existing cookie if it happens
-					// to be still present. 
-					cookieDAO.remove(request, response);
 				}
 				
 				return LOGIN_SUCCESS;

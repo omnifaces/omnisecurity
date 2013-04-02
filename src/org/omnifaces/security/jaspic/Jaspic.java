@@ -13,7 +13,7 @@
 package org.omnifaces.security.jaspic;
 
 import static java.lang.Boolean.TRUE;
-import static org.omnifaces.security.jaspic.HttpServerAuthModule.IS_LOGOUT_KEY;
+import static org.omnifaces.util.Utils.isOneOf;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,6 +22,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.callback.CallerPrincipalCallback;
 import javax.security.auth.message.callback.GroupPrincipalCallback;
@@ -43,9 +44,20 @@ import org.omnifaces.util.Faces;
  */
 public final class Jaspic {
 	
-	public static final String IS_AUTHENTICATION_KEY = "org.omnifaces.security.message.request.isAuthentication";
-	public static final String LOGGEDIN_USERNAME_KEY = "org.omnifaces.security.message.loggedin.username";
-	public static final String LOGGEDIN_ROLES_KEY = "org.omnifaces.security.message.loggedin.roles";
+	public static final String IS_AUTHENTICATION = "org.omnifaces.security.message.request.authentication";
+	public static final String IS_AUTHENTICATION_FROM_FILTER = "org.omnifaces.security.message.request.authenticationFromFilter";
+	public static final String IS_SECURE_RESPONSE = "org.omnifaces.security.message.request.secureResponse";
+	public static final String IS_LOGOUT = "org.omnifaces.security.message.request.isLogout";
+	
+	public static final String LOGGEDIN_USERNAME = "org.omnifaces.security.message.loggedin.username";
+	public static final String LOGGEDIN_ROLES = "org.omnifaces.security.message.loggedin.roles";
+	public static final String LAST_AUTH_STATUS = "org.omnifaces.security.message.authStatus";
+	
+	// Key in the MessageInfo Map that when present AND set to true indicated a protected resource is being accessed.
+	// When the resource is not protected, GlassFish omits the key altogether. WebSphere does insert the key and sets
+	// it to false.
+	private static final String IS_MANDATORY = "javax.security.auth.message.MessagePolicy.isMandatory";
+	private static final String REGISTER_SESSION = "javax.servlet.http.registerSession";
 
 	private Jaspic() {}
 		
@@ -71,14 +83,27 @@ public final class Jaspic {
 	
 	public static boolean authenticate(HttpServletRequest request, HttpServletResponse response) {
 		try {
-			request.setAttribute(IS_AUTHENTICATION_KEY, true);
+			request.setAttribute(IS_AUTHENTICATION, true);
 			return request.authenticate(response);
 		} catch (ServletException | IOException e) {
 			throw new IllegalArgumentException(e);
 		} finally {
-			request.removeAttribute(IS_AUTHENTICATION_KEY);
+			request.removeAttribute(IS_AUTHENTICATION);
 		}
 	}
+	
+	public static boolean authenticateFromFilter(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			request.setAttribute(IS_AUTHENTICATION_FROM_FILTER, true);
+			return request.authenticate(response);
+		} catch (ServletException | IOException e) {
+			throw new IllegalArgumentException(e);
+		} finally {
+			request.removeAttribute(IS_AUTHENTICATION_FROM_FILTER);
+		}
+	}
+	
+	
 	
 	public static void logout() {
 		logout(Faces.getRequest(), Faces.getResponse());
@@ -91,12 +116,12 @@ public final class Jaspic {
 			
 			// Hack to signal to the SAM that we are logging out. Only works this way
 			// for the OmniServerAuthModule.
-			request.setAttribute(IS_LOGOUT_KEY, true);
+			request.setAttribute(IS_LOGOUT, true);
 			request.authenticate(response);
 		} catch (ServletException | IOException e) {
 			throw new IllegalArgumentException(e);
 		} finally {
-			request.removeAttribute(IS_LOGOUT_KEY);
+			request.removeAttribute(IS_LOGOUT);
 		}
 	}
 	
@@ -114,7 +139,11 @@ public final class Jaspic {
 	}
 	
 	public static boolean isRegisterSession(MessageInfo messageInfo) {
-		return Boolean.valueOf((String)messageInfo.getMap().get("javax.servlet.http.registerSession"));
+		return Boolean.valueOf((String)messageInfo.getMap().get(REGISTER_SESSION));
+	}
+	
+	public static boolean isProtectedResource(MessageInfo messageInfo) {
+		return Boolean.valueOf((String) messageInfo.getMap().get(IS_MANDATORY));
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -122,13 +151,42 @@ public final class Jaspic {
 		messageInfo.getMap().put("javax.servlet.http.registerSession", TRUE.toString());
 		
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
-		request.setAttribute(LOGGEDIN_USERNAME_KEY, userName);
+		request.setAttribute(LOGGEDIN_USERNAME, userName);
 		// TODO: check for existing roles and add
-		request.setAttribute(LOGGEDIN_ROLES_KEY, roles);
+		request.setAttribute(LOGGEDIN_ROLES, roles);
 	}
 	
 	public static boolean isAuthenticationRequest(HttpServletRequest request) {
-		return TRUE.equals(request.getAttribute(IS_AUTHENTICATION_KEY));
+		return TRUE.equals(request.getAttribute(IS_AUTHENTICATION));
+	}
+	
+	public static boolean isAuthenticationFromFilterRequest(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(IS_AUTHENTICATION_FROM_FILTER));
+	}
+	
+	public static boolean isSecureResponseRequest(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(IS_SECURE_RESPONSE));
+	}
+	
+	public static boolean isLogoutRequest(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(IS_LOGOUT));
+	}
+	
+	/**
+	 * Returns true if authorization was explicitly called for via this class (e.g. by calling {@link Jaspic#authenticate()},
+	 * false if authorization was called automatically by the runtime at the start of the request or directly via e.g. 
+	 * {@link HttpServletRequest#authenticate(HttpServletResponse)}
+	 * 
+	 * @param request
+	 * @return true if authorization was initiated via this class, false otherwise
+	 */
+	public static boolean isExplicitAuthCall(HttpServletRequest request) {
+		return isOneOf(TRUE, 
+			request.getAttribute(IS_AUTHENTICATION), 
+			request.getAttribute(IS_AUTHENTICATION_FROM_FILTER), 
+			request.getAttribute(IS_SECURE_RESPONSE),
+			request.getAttribute(IS_LOGOUT)
+		);
 	}
 	
 	public static void notifyContainerAboutLogin(Subject clientSubject, CallbackHandler handler, String userName, List<String> roles) {
@@ -157,5 +215,12 @@ public final class Jaspic {
 		}
 	}
 	
+	public static void setLastStatus(HttpServletRequest request, AuthStatus status) {
+		request.setAttribute(LAST_AUTH_STATUS, status);
+	}
+	
+	public static AuthStatus getLastStatus(HttpServletRequest request) {
+		return (AuthStatus) request.getAttribute(LAST_AUTH_STATUS);
+	}
 	
 }

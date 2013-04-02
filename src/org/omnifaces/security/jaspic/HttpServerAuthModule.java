@@ -15,9 +15,9 @@ package org.omnifaces.security.jaspic;
 import static javax.security.auth.message.AuthStatus.FAILURE;
 import static javax.security.auth.message.AuthStatus.SEND_SUCCESS;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
-import static org.omnifaces.util.Utils.coalesce;
+import static org.omnifaces.security.jaspic.Jaspic.isLogoutRequest;
+import static org.omnifaces.security.jaspic.Jaspic.isProtectedResource;
 
-import java.io.IOException;
 import java.util.Map;
 
 import javax.security.auth.Subject;
@@ -28,12 +28,6 @@ import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.MessagePolicy;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -43,18 +37,11 @@ import javax.servlet.http.HttpServletResponse;
  * @author Arjan Tijms
  * 
  */
-public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
+public abstract class HttpServerAuthModule implements ServerAuthModule {
 	
-	public static final String IS_LOGOUT_KEY = "org.omnifaces.security.message.request.isLogout";
 	public static final String USERNAME_KEY = "org.omnifaces.security.message.request.username";
 	public static final String PASSWORD_KEY = "org.omnifaces.security.message.request.password";
 	public static final String REMEMBERME_KEY = "org.omnifaces.security.message.request.rememberme";
-	
-	
-	// Key in the MessageInfo Map that when present AND set to true indicated a protected resource is being accessed.
-	// When the resource is not protected, GlassFish omits the key altogether. WebSphere does insert the key and sets
-	// it to false.
-	private static final String IS_MANDATORY_KEY = "javax.security.auth.message.MessagePolicy.isMandatory";
 
 	private CallbackHandler handler;
 	private final Class<?>[] supportedMessageTypes = new Class[] { HttpServletRequest.class, HttpServletResponse.class };
@@ -63,11 +50,6 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler,
 			@SuppressWarnings("rawtypes") Map options) throws AuthException {
 		this.handler = handler;
-	}
-	
-	@Override
-	public void init(FilterConfig config) throws ServletException {
-		
 	}
 
 	/**
@@ -86,10 +68,10 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 		// types and casting should always work.
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
 		HttpServletResponse response = (HttpServletResponse) messageInfo.getResponseMessage();
-		boolean isProtectedResource = Boolean.valueOf((String) messageInfo.getMap().get(IS_MANDATORY_KEY));
+		boolean isProtectedResource = isProtectedResource(messageInfo);
 		
 		AuthStatus status = null;
-		if (request.getAttribute(IS_LOGOUT_KEY) != null) {
+		if (isLogoutRequest(request)) {
 			status = logout(request, response, clientSubject);
 		} else {
 			status = validateHttpRequest(request, response, messageInfo, clientSubject, serviceSubject, handler, isProtectedResource);
@@ -100,15 +82,6 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 		}
 		
 		return status;
-	}
-	
-	@Override
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-		doFilterHttp((HttpServletRequest) request, (HttpServletResponse) response, chain);
-	}
-	
-	public void doFilterHttp(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-		
 	}
 	
 	/**
@@ -140,31 +113,6 @@ public abstract class HttpServerAuthModule implements ServerAuthModule, Filter {
 	
 	public AuthStatus logout(HttpServletRequest request, HttpServletResponse response, Subject clientSubject) {
 		return SUCCESS;
-	}
-	
-	@Override
-	public void destroy() {
-		
-	}
-	
-
-	
-	
-	public boolean notNull(Object... objects) {
-		return coalesce(objects) != null;
-	}
-	
-	public String getBaseURL(HttpServletRequest request) {
-		String url = request.getRequestURL().toString();
-		return url.substring(0, url.length() - request.getRequestURI().length()) + request.getContextPath();
-	}
-	
-	public void redirect(HttpServletResponse response, String location) {
-		try {
-			response.sendRedirect(location);
-		} catch (IOException e) {
-			throw new IllegalStateException(e);
-		}
 	}
 
 }

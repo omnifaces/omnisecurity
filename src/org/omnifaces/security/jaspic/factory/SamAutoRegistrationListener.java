@@ -22,6 +22,7 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 
+import org.omnifaces.security.jaspic.OmniServerAuthFilter;
 import org.omnifaces.security.jaspic.OmniServerAuthModule;
 import org.omnifaces.security.jaspic.config.AuthStacksBuilder;
 import org.omnifaces.security.jaspic.config.Module;
@@ -92,8 +93,8 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 		
 		// Register the SAM separately as a filter
 		sce.getServletContext().addFilter(
-			OmniServerAuthModule.class.getName(), 
-			OmniServerAuthModule.class
+			OmniServerAuthFilter.class.getName(), 
+			OmniServerAuthFilter.class
 		).addMappingForUrlPatterns(null, false, "/*");
 	}
 

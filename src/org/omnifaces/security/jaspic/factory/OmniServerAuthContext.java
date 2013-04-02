@@ -13,12 +13,17 @@
 package org.omnifaces.security.jaspic.factory;
 
 import static java.util.Collections.unmodifiableList;
+import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
-import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_ROLES_KEY;
-import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_USERNAME_KEY;
+import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_ROLES;
+import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_USERNAME;
 import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
+import static org.omnifaces.security.jaspic.Jaspic.isExplicitAuthCall;
+import static org.omnifaces.security.jaspic.Jaspic.isProtectedResource;
 import static org.omnifaces.security.jaspic.Jaspic.isRegisterSession;
 import static org.omnifaces.security.jaspic.Jaspic.notifyContainerAboutLogin;
+import static org.omnifaces.security.jaspic.Utils.getBaseURL;
+import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,11 +39,13 @@ import javax.security.auth.message.ServerAuth;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.omnifaces.security.jaspic.AuthResult;
 import org.omnifaces.security.jaspic.Jaspic;
 import org.omnifaces.security.jaspic.config.Module;
+import org.omnifaces.security.jaspic.request.RequestDataDAO;
 
 /**
  * The Server Authentication Context is an extra (required) indirection between the Application Server and the actual Server Authentication Module
@@ -54,6 +61,8 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 	private Map<String, List<Module>> stacks;
 	private CallbackHandler handler;
+	
+	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
 	public OmniServerAuthContext(CallbackHandler handler, Map<String, List<Module>> stacks) throws AuthException {
 		
@@ -70,16 +79,44 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
 		
+		AuthStatus status = doValidateRequest(messageInfo, clientSubject, serviceSubject);
+		Jaspic.setLastStatus((HttpServletRequest) messageInfo.getRequestMessage(), status);
+		
+		return status;
+	}
+	
+	public AuthStatus doValidateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
+	
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
+		HttpServletResponse response = (HttpServletResponse) messageInfo.getResponseMessage();
 		
 		// Check to see if we're already authenticated.
 		//
-		// With JASPIC 1.0MR1, the container doesn't remember authentication data between requests and we have thus have to
+		// With JASPIC 1.0MR1, the container doesn't remember authentication data between requests and we thus have to
 		// re-authenticate before every request. It's important to skip this step if authentication is explicitly requested, otherwise
 		// we risk re-authenticating instead of processing a new login request.
 		//
 		// With JASPIC 1.0MR2, the container takes care of this detail if so requested.
 		if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
+			return SUCCESS;
+		}
+		
+		if (!isExplicitAuthCall(request)) {
+			
+			// Check to see if this request is to a protected resource
+			//
+			// We'll save the current request here, so we can redirect to the original URL after
+			// authentication succeeds and when we start processing that URL wrap the request
+			// with one containing the original headers, cookies, etc.
+			if (isProtectedResource(messageInfo)) {
+				
+				requestDAO.save(request);
+				redirect(response, getBaseURL(request) + "/login.xhtml");
+							
+				return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
+			}
+
+			// No login request and no protected resource. Just continue.
 			return SUCCESS;
 		}
 		
@@ -146,8 +183,8 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		request.getSession().setAttribute(
 			AUTHENTICATOR_SESSION_NAME, 
 			new AuthenticationData(
-				(String) request.getAttribute(LOGGEDIN_USERNAME_KEY),
-				(List<String>) request.getAttribute(LOGGEDIN_ROLES_KEY)		
+				(String) request.getAttribute(LOGGEDIN_USERNAME),
+				(List<String>) request.getAttribute(LOGGEDIN_ROLES)		
 			)
 		);
 	}
