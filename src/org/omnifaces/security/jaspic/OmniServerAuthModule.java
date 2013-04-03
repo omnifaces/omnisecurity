@@ -13,12 +13,9 @@
 package org.omnifaces.security.jaspic;
 
 import static java.lang.Boolean.TRUE;
-import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.cdi.Beans.getReference;
-import static org.omnifaces.security.jaspic.Jaspic.notifyContainerAboutLogin;
-import static org.omnifaces.security.jaspic.Jaspic.setRegisterSession;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
@@ -26,10 +23,7 @@ import static org.omnifaces.security.jaspic.Utils.notNull;
 import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import javax.enterprise.inject.spi.BeanManager;
-import javax.security.auth.Subject;
-import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthStatus;
-import javax.security.auth.message.MessageInfo;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -44,7 +38,17 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
 
 
 /**
- * The actual Server Authentication Module AKA SAM.
+ * The actual Server Authentication Module AKA SAM. This SAM is designed to work specifically with a user space
+ * user name/password {@link Authenticator} that is obtained via a CDI bean manager lookup.
+ * <p>
+ * 
+ * Authentication is triggered by the presence of request attributes {@link HttpServerAuthModule#USERNAME_KEY} and 
+ * {@link HttpServerAuthModule#PASSWORD_KEY}.
+ * <p>
+ * 
+ * The intended usage of this SAM is via a regular JSF user name/password form backed by a bean that sets the above mentioned
+ * request attributes and then calls {@link HttpServletRequest#authenticate(HttpServletResponse)}. This project provides
+ * {@link Jaspic#authenticate()} as a convenience shortcut for that.
  *
  */
 public class OmniServerAuthModule extends HttpServerAuthModule {
@@ -59,12 +63,12 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 	}
 	
 	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject, CallbackHandler handler, boolean isProtectedResource) {
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 			
 		// Check to see if this is a request from user code to login
 		//
-		// In the case of this SAM, it means a managed bean or the filter method of this class has called request#authenticate (via Jaspic#authenticate)
-		switch (isLoginRequest(request, response, messageInfo, clientSubject, handler)) {
+		// In the case of this SAM, it means a managed bean or the Filter method has called request#authenticate (via Jaspic#authenticate)
+		switch (isLoginRequest(request, response, httpMsgContext)) {
 		
 			case LOGIN_SUCCESS:
 		
@@ -96,7 +100,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 	}
 	
 	@Override
-	public AuthStatus logout(HttpServletRequest request, HttpServletResponse response, Subject clientSubject) {
+	public void cleanHttpSubject(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 		
 		// If there's a "remember me" cookie present, remove it.
 		if (cookieDAO.get(request) != null) {
@@ -107,10 +111,9 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			}				
 		}
 		
-		return SEND_CONTINUE;
 	}
 	
-	private LoginResult isLoginRequest(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject, CallbackHandler handler) {
+	private LoginResult isLoginRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 		Delegators delegators = tryGetDelegators();
 		
 		// This SAM is supposed to work following a call to HttpServletRequest#authenticate. Such call is in-context of the component executing it,
@@ -152,11 +155,8 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			}
 			
 			if (authenticated) {
-				
-				notifyContainerAboutLogin(clientSubject, handler, authenticator.getUserName(), authenticator.getApplicationRoles());
-				
-				// Ask the runtime to remember the authenticated details for the duration of the http session.
-				setRegisterSession(messageInfo, authenticator.getUserName(), authenticator.getApplicationRoles());
+			    
+			    httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 				
 				if (tokenAuthenticator != null && TRUE.equals(request.getAttribute(REMEMBERME_KEY))) {
 					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());

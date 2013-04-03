@@ -13,12 +13,14 @@
 package org.omnifaces.security.jaspic.factory;
 
 import static java.util.Collections.unmodifiableList;
+import static javax.security.auth.message.AuthStatus.FAILURE;
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_ROLES;
 import static org.omnifaces.security.jaspic.Jaspic.LOGGEDIN_USERNAME;
 import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Jaspic.isExplicitAuthCall;
+import static org.omnifaces.security.jaspic.Jaspic.isLogoutRequest;
 import static org.omnifaces.security.jaspic.Jaspic.isProtectedResource;
 import static org.omnifaces.security.jaspic.Jaspic.isRegisterSession;
 import static org.omnifaces.security.jaspic.Jaspic.notifyContainerAboutLogin;
@@ -35,9 +37,7 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
-import javax.security.auth.message.ServerAuth;
 import javax.security.auth.message.config.ServerAuthContext;
-import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -51,8 +51,19 @@ import org.omnifaces.security.jaspic.request.RequestDataDAO;
  * The Server Authentication Context is an extra (required) indirection between the Application Server and the actual Server Authentication Module
  * (SAM). This can be used to encapsulate any number of SAMs and either select one at run-time, invoke them all in order, etc.
  * <p>
- * Since this simple example only has a single SAM, we delegate directly to that one. Note that this {@link ServerAuthContext} and the
- * {@link ServerAuthModule} (SAM) share a common base interface: {@link ServerAuth}.
+ * This auth context implements the algorithm for a JAAS/PAM like stacking of auth modules and simulates some JASPIC MR2 (Java EE 7)
+ * features for use in a JASPIC MR1 (Java EE 6) environment such as delivering a logout call to the auth modules and automatically
+ * creating an authentication session.
+ * <p>
+ * This auth context is also instrumental on working around the CDI limitation of JASPIC; a protected request is always redirected
+ * to a public resource, where a Filter does an explicit call for authentication. Container calls are not delegated to the SAMs, only
+ * explicit calls are. This ensures at the cost of an extra redirect that SAMs always execute within a context where CDI, EJB etc is available
+ * and where forwards on the passed-in request instance work.
+ * <p>
+ * Note: As explained above, parts of this implementation are redundant with JASPIC 1.0 MR2. Hopefully the Filter workaround will
+ * be redundant too with some future version of JASPIC.
+ * 
+ * @author Arjan Tijms
  *
  */
 public class OmniServerAuthContext implements ServerAuthContext {
@@ -90,34 +101,9 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
 		HttpServletResponse response = (HttpServletResponse) messageInfo.getResponseMessage();
 		
-		// Check to see if we're already authenticated.
-		//
-		// With JASPIC 1.0MR1, the container doesn't remember authentication data between requests and we thus have to
-		// re-authenticate before every request. It's important to skip this step if authentication is explicitly requested, otherwise
-		// we risk re-authenticating instead of processing a new login request.
-		//
-		// With JASPIC 1.0MR2, the container takes care of this detail if so requested.
-		if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
-			return SUCCESS;
-		}
-		
-		if (!isExplicitAuthCall(request)) {
-			
-			// Check to see if this request is to a protected resource
-			//
-			// We'll save the current request here, so we can redirect to the original URL after
-			// authentication succeeds and when we start processing that URL wrap the request
-			// with one containing the original headers, cookies, etc.
-			if (isProtectedResource(messageInfo)) {
-				
-				requestDAO.save(request);
-				redirect(response, getBaseURL(request) + "/login.xhtml");
-							
-				return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
-			}
-
-			// No login request and no protected resource. Just continue.
-			return SUCCESS;
+		AuthStatus status = checkSpecialCases(request, response, messageInfo, clientSubject);
+		if (status != null) {
+		    return status;
 		}
 		
 		boolean requiredFailed = false;
@@ -127,6 +113,11 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			for (Module module : stacks.values().iterator().next()) { // tmp
 				
 				AuthResult authResult = Jaspic.validateRequest(module.getServerAuthModule(), messageInfo, clientSubject, serviceSubject);
+				
+				if (authResult.getAuthStatus() == FAILURE) {
+		            throw new IllegalStateException("Servlet Container Profile SAM should not return status FAILURE. This is for CLIENT SAMs only");
+		        }
+				
 				finalAuthResult.add(authResult);
 				
 				switch (module.getControlFlag()) {
@@ -176,6 +167,53 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		for (Module module : stacks.values().iterator().next()) { // tmp
 			module.getServerAuthModule().cleanSubject(messageInfo, subject);
 		}
+	}
+	
+	private AuthStatus checkSpecialCases(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject) throws AuthException {
+	    
+	    // Check if this is a logout request.
+        //
+        // With JASPIC 1.0MR1 request#logout is not profiled and the call with most runtimes will not reach this auth context.
+        // So OmniSecurity uses a hacky workaround where Jaspic.logout actually calls authenticate with a request attribute that we
+        // check here and manually divert to cleanSubject.
+        //
+        // With JASPIC 1.0MR2 request#logout will directly go to cleanSubject
+        if (isLogoutRequest(request)) {
+            cleanSubject(messageInfo, clientSubject);
+            return SEND_CONTINUE;
+        }
+        
+        // Check to see if we're already authenticated.
+        //
+        // With JASPIC 1.0MR1, the container doesn't remember authentication data between requests and we thus have to
+        // re-authenticate before every request. It's important to skip this step if authentication is explicitly requested, otherwise
+        // we risk re-authenticating instead of processing a new login request.
+        //
+        // With JASPIC 1.0MR2, the container takes care of this detail if so requested.
+        if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
+            return SUCCESS;
+        }
+        
+        if (!isExplicitAuthCall(request)) {
+            
+            // Check to see if this request is to a protected resource
+            //
+            // We'll save the current request here, so we can redirect to the original URL after
+            // authentication succeeds and when we start processing that URL wrap the request
+            // with one containing the original headers, cookies, etc.
+            if (isProtectedResource(messageInfo)) {
+                
+                requestDAO.save(request);
+                redirect(response, getBaseURL(request) + "/login.xhtml");
+                            
+                return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
+            }
+
+            // No login request and no protected resource. Just continue.
+            return SUCCESS;
+        }
+        
+        return null;
 	}
 	
 	@SuppressWarnings("unchecked")

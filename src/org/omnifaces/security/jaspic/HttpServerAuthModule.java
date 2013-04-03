@@ -12,11 +12,7 @@
  */
 package org.omnifaces.security.jaspic;
 
-import static javax.security.auth.message.AuthStatus.FAILURE;
 import static javax.security.auth.message.AuthStatus.SEND_SUCCESS;
-import static javax.security.auth.message.AuthStatus.SUCCESS;
-import static org.omnifaces.security.jaspic.Jaspic.isLogoutRequest;
-import static org.omnifaces.security.jaspic.Jaspic.isProtectedResource;
 
 import java.util.Map;
 
@@ -63,25 +59,8 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-		
-		// Cast the request and response messages. Because of our getSupportedMessageTypes, they have to be of the correct
-		// types and casting should always work.
-		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
-		HttpServletResponse response = (HttpServletResponse) messageInfo.getResponseMessage();
-		boolean isProtectedResource = isProtectedResource(messageInfo);
-		
-		AuthStatus status = null;
-		if (isLogoutRequest(request)) {
-			status = logout(request, response, clientSubject);
-		} else {
-			status = validateHttpRequest(request, response, messageInfo, clientSubject, serviceSubject, handler, isProtectedResource);
-		}
-		
-		if (status == FAILURE) {
-			throw new IllegalStateException("Servlet Container Profile SAM should not return status FAILURE. This is for CLIENT SAMs only");
-		}
-		
-		return status;
+		HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, clientSubject);
+		return validateHttpRequest(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
 	
 	/**
@@ -94,25 +73,21 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	}
 
 	/**
-	 * Doesn't seem to be called by any server, ever.
+	 * Called in response to a {@link HttpServletRequest#logout()} call.
+	 * 
 	 */
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-		if (subject != null) {
-			subject.getPrincipals().clear();
-		}
+	    HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, subject);
+		cleanHttpSubject(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
 	
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject, CallbackHandler handler, boolean isProtectedResource) {
-		return validateHttpRequest(request, response, clientSubject, handler, isProtectedResource);
-	}
-	
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, Subject clientSubject, CallbackHandler handler, boolean isProtectedResource) {
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 		throw new IllegalStateException("Not implemented");
 	}
 	
-	public AuthStatus logout(HttpServletRequest request, HttpServletResponse response, Subject clientSubject) {
-		return SUCCESS;
+	public void cleanHttpSubject(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
+	    httpMsgContext.cleanClientSubject();
 	}
 
 }
