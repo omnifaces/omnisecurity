@@ -24,6 +24,7 @@ import javax.servlet.annotation.WebListener;
 
 import org.omnifaces.security.jaspic.OmniServerAuthFilter;
 import org.omnifaces.security.jaspic.OmniServerAuthModule;
+import org.omnifaces.security.jaspic.SocialServerAuthModule;
 import org.omnifaces.security.jaspic.config.AuthStacksBuilder;
 import org.omnifaces.security.jaspic.config.Module;
 
@@ -33,34 +34,34 @@ import org.omnifaces.security.jaspic.config.Module;
  * NOTE: Because of an omission in the JASPIC spec there currently does not seem to be a
  * way to register the SAM just for the current web app. Registration is done for ALL
  * apps running on the server, which could be a serious problem.
- * 
+ *
  * @author Arjan Tijms
  *
  */
 @WebListener
 public class SamAutoRegistrationListener implements ServletContextListener {
-	
+
 	@Override
 	public void contextInitialized(ServletContextEvent sce) {
-		
+
 		// Example
-		
+
 		/*
 		new AuthStacksBuilder()
-			
+
 			.stack()
 				.name("jsf-form")
 				.module()
 					.serverAuthModule(new OmniServerAuthModule())
 					.controlFlag(REQUIRED)
 					.add()
-					
+
 				.module()
 					.serverAuthModule(new OmniServerAuthModule())
 					.controlFlag(OPTIONAL)
 					.add()
 				.add()
-				
+
 			.stack()
 				.name("OpenID-Google")
 				.module()
@@ -70,9 +71,9 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 				.add()
 			.build();
 			*/
-		
+
 		 Map<String, List<Module>> stacks = new AuthStacksBuilder()
-		 
+
 		 	.stack()
 		 		.name("jsf-form")
 		 		.module()
@@ -80,20 +81,26 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 					.controlFlag(REQUIRED)
 					.add()
 				.add()
-				
+		 	.stack()
+		 		.name("social-authentication")
+		 		.module()
+					.serverAuthModule(new SocialServerAuthModule())
+					.controlFlag(REQUIRED)
+					.add()
+				.add()
 			.build();
-		 		
-		
+
+
 		// Register the factory-factory-factory for the SAM
 		AuthConfigFactory.getFactory().registerConfigProvider(
-			new OmniAuthConfigProvider(stacks), 
+			new OmniAuthConfigProvider(stacks),
 			"HttpServlet", null, "OmniSecurity authentication config provider"
 		);
-				
-		
+
+
 		// Register the SAM separately as a filter
 		sce.getServletContext().addFilter(
-			OmniServerAuthFilter.class.getName(), 
+			OmniServerAuthFilter.class.getName(),
 			OmniServerAuthFilter.class
 		).addMappingForUrlPatterns(null, false, "/*");
 	}
