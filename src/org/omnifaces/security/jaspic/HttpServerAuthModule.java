@@ -29,12 +29,12 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * A server authentication module (SAM) implementation base class, tailored for the Servlet Container Profile.
- * 
+ *
  * @author Arjan Tijms
- * 
+ *
  */
 public abstract class HttpServerAuthModule implements ServerAuthModule {
-	
+
 	public static final String USERNAME_KEY = "org.omnifaces.security.message.request.username";
 	public static final String PASSWORD_KEY = "org.omnifaces.security.message.request.password";
 	public static final String REMEMBERME_KEY = "org.omnifaces.security.message.request.rememberme";
@@ -56,13 +56,13 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	public Class<?>[] getSupportedMessageTypes() {
 		return supportedMessageTypes;
 	}
-	
+
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
 		HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, clientSubject);
 		return validateHttpRequest(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
-	
+
 	/**
 	 * WebLogic 12c and JBoss EAP 6 (optionally) calls this before Servlet is called, Geronimo v3 and GlassFish 3.1.2.2 after. WebLogic
 	 * (seemingly) only continues if SEND_SUCCESS is returned, Geronimo completely ignores return value.
@@ -74,18 +74,18 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 
 	/**
 	 * Called in response to a {@link HttpServletRequest#logout()} call.
-	 * 
+	 *
 	 */
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
 	    HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, subject);
 		cleanHttpSubject(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
-	
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
+
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 		throw new IllegalStateException("Not implemented");
 	}
-	
+
 	public void cleanHttpSubject(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 	    httpMsgContext.cleanClientSubject();
 	}

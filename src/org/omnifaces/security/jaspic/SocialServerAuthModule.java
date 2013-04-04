@@ -1,7 +1,10 @@
 package org.omnifaces.security.jaspic;
 
+import static org.omnifaces.security.jaspic.Utils.getBaseURL;
+
 import java.util.Map;
 
+import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -19,7 +22,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
 
 	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 
 		if (isLoginRequest(request, response)) {
 			return AuthStatus.SEND_CONTINUE;
@@ -31,20 +34,21 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			}
 		}
 		catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return AuthStatus.FAILURE;
+			AuthException authException = new AuthException();
+			authException.initCause(e);
+
+			throw authException;
 		}
 
 		return AuthStatus.SUCCESS;
 	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		SocialAuthManager manager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
+		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
 
-		if (manager != null && request.getRequestURI().endsWith("/login")) {
+		if (socialAuthManager != null && request.getRequestURI().equals(getBaseURL(request) + "/login")) {
 			Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(request);
-			AuthProvider authProvider = manager.connect(requestParametersMap);
+			AuthProvider authProvider = socialAuthManager.connect(requestParametersMap);
 
 
 			SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
@@ -64,19 +68,19 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response) {
 
-		SocialAuthManager manager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-		if(manager == null && request.getRequestURI().endsWith("/facebook")) {
+		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
+		if(socialAuthManager == null && request.getRequestURI().endsWith("/facebook")) {
 			SocialAuthConfig config = new SocialAuthConfig();
 
 			try {
 				config.load();
 
-				manager = new SocialAuthManager();
-				manager.setSocialAuthConfig(config);
+				socialAuthManager = new SocialAuthManager();
+				socialAuthManager.setSocialAuthConfig(config);
 
-				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, manager);
+				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, socialAuthManager);
 
-				response.sendRedirect(manager.getAuthenticationUrl("facebook", "http://localhost:8080/login"));
+				response.sendRedirect(socialAuthManager.getAuthenticationUrl("facebook", getBaseURL(request) + "/login"));
 
 				return true;
 
