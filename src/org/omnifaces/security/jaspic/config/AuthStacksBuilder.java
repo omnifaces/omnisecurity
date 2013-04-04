@@ -13,31 +13,41 @@
 package org.omnifaces.security.jaspic.config;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 import javax.security.auth.message.module.ServerAuthModule;
 
 public class AuthStacksBuilder {
 	
-	Map<String, List<Module>> stacks = new HashMap<>();
+	AuthStacks authStacks = new AuthStacks();
 	
 	public StackBuilder stack() {
 		return new StackBuilder();
 	}
 	
-	public Map<String, List<Module>> build() {
-		return stacks;
+	public AuthStacks build() {
+		// If there's no default, take first.
+		if (authStacks.getDefaultStackName() == null && authStacks.getModuleStacks().size() > 0) {
+			authStacks.setDefaultStackName(authStacks.getModuleStacks().keySet().iterator().next());
+		}
+		
+		return authStacks;
 	}
 		
 	public class StackBuilder {
 	
 		String name;
+		boolean isDefault;
 		List<Module> modules = new ArrayList<>();
 		
 		public StackBuilder name(String name) {
 			this.name = name;
+			return this;
+		}
+		
+		public StackBuilder setDefault() {
+			isDefault = true;
 			return this;
 		}
 		
@@ -46,7 +56,13 @@ public class AuthStacksBuilder {
 		}
 		
 		public AuthStacksBuilder add() {
-			stacks.put(name, modules);
+			if (name == null) {
+				name = UUID.randomUUID().toString();
+			}
+			if (isDefault) {
+				authStacks.setDefaultStackName(name);
+			}
+			authStacks.getModuleStacks().put(name, modules);
 			return AuthStacksBuilder.this;
 		}
 		
