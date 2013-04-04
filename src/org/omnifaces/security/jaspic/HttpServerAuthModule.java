@@ -34,10 +34,6 @@ import javax.servlet.http.HttpServletResponse;
  * 
  */
 public abstract class HttpServerAuthModule implements ServerAuthModule {
-	
-	public static final String USERNAME_KEY = "org.omnifaces.security.message.request.username";
-	public static final String PASSWORD_KEY = "org.omnifaces.security.message.request.password";
-	public static final String REMEMBERME_KEY = "org.omnifaces.security.message.request.rememberme";
 
 	private CallbackHandler handler;
 	private final Class<?>[] supportedMessageTypes = new Class[] { HttpServletRequest.class, HttpServletResponse.class };

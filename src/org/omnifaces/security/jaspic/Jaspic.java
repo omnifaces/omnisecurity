@@ -50,6 +50,8 @@ public final class Jaspic {
 	public static final String IS_SECURE_RESPONSE = "org.omnifaces.security.message.request.secureResponse";
 	public static final String IS_LOGOUT = "org.omnifaces.security.message.request.isLogout";
 	
+	public static final String AUTH_PARAMS = "org.omnifaces.security.message.request.authParams";
+	
 	public static final String LOGGEDIN_USERNAME = "org.omnifaces.security.message.loggedin.username";
 	public static final String LOGGEDIN_ROLES = "org.omnifaces.security.message.loggedin.roles";
 	public static final String LAST_AUTH_STATUS = "org.omnifaces.security.message.authStatus";
@@ -63,33 +65,27 @@ public final class Jaspic {
 	private Jaspic() {}
 		
 	public static boolean authenticate() {
-		return authenticate(Faces.getRequest(), Faces.getResponse());
+		return authenticate(Faces.getRequest(), Faces.getResponse(), null);
 	}
 	
-	public static boolean authenticate(String username, String password, boolean rememberMe) {
-		
-		HttpServletRequest request = Faces.getRequest();
-		
-		try {
-			request.setAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.USERNAME_KEY , username);
-			request.setAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.PASSWORD_KEY , password);
-			request.setAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.REMEMBERME_KEY , rememberMe);
-		return authenticate(request, Faces.getResponse());
-		} finally {
-			request.removeAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.USERNAME_KEY);
-			request.removeAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.PASSWORD_KEY);
-			request.removeAttribute(org.omnifaces.security.jaspic.HttpServerAuthModule.REMEMBERME_KEY);
-		}
+	public static boolean authenticate(AuthParameters authParameters) {
+		return authenticate(Faces.getRequest(), Faces.getResponse(), authParameters);
 	}
 	
-	public static boolean authenticate(HttpServletRequest request, HttpServletResponse response) {
+	public static boolean authenticate(HttpServletRequest request, HttpServletResponse response, AuthParameters authParameters) {
 		try {
 			request.setAttribute(IS_AUTHENTICATION, true);
+			if (authParameters != null) {
+				request.setAttribute(AUTH_PARAMS, authParameters);
+			}
 			return request.authenticate(response);
 		} catch (ServletException | IOException e) {
 			throw new IllegalArgumentException(e);
 		} finally {
 			request.removeAttribute(IS_AUTHENTICATION);
+			if (authParameters != null) {
+				request.removeAttribute(AUTH_PARAMS);
+			}
 		}
 	}
 	
@@ -102,6 +98,15 @@ public final class Jaspic {
 		} finally {
 			request.removeAttribute(IS_AUTHENTICATION_FROM_FILTER);
 		}
+	}
+	
+	public static AuthParameters getAuthParameters(HttpServletRequest request) {
+		AuthParameters authParameters = (AuthParameters) request.getAttribute(AUTH_PARAMS);
+		if (authParameters == null) {
+			authParameters = new AuthParameters();
+		}
+		
+		return authParameters;
 	}
 	
 	public static void logout() {

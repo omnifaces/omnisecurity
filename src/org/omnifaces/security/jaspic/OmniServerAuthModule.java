@@ -42,8 +42,7 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  * user name/password {@link Authenticator} that is obtained via a CDI bean manager lookup.
  * <p>
  * 
- * Authentication is triggered by the presence of request attributes {@link HttpServerAuthModule#USERNAME_KEY} and 
- * {@link HttpServerAuthModule#PASSWORD_KEY}.
+ * Authentication is triggered by the presence of request attributes {@link Jaspic#AUTH_PARAMS} with a non-null username and password
  * <p>
  * 
  * The intended usage of this SAM is via a regular JSF user name/password form backed by a bean that sets the above mentioned
@@ -130,12 +129,11 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			
 			Authenticator authenticator = null;
 			boolean authenticated = false;
-			if (notNull(request.getAttribute(USERNAME_KEY), request.getAttribute(PASSWORD_KEY))) {
-				authenticated = usernamePasswordAuthenticator.authenticate(
-					(String) request.getAttribute(USERNAME_KEY),
-					(String) request.getAttribute(PASSWORD_KEY)
-				);
-				
+			
+			AuthParameters authParameters = httpMsgContext.getAuthParameters();
+			
+			if (notNull(authParameters.getUserName(), authParameters.getPassword())) {
+				authenticated = usernamePasswordAuthenticator.authenticate(authParameters.getUserName(), authParameters.getPassword());
 				authenticator = usernamePasswordAuthenticator;
 			} else if (cookie != null && tokenAuthenticator != null) {
 				authenticated = tokenAuthenticator.authenticate(cookie.getValue());
@@ -158,7 +156,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			    
 			    httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 				
-				if (tokenAuthenticator != null && TRUE.equals(request.getAttribute(REMEMBERME_KEY))) {
+				if (tokenAuthenticator != null && TRUE.equals(authParameters.getRememberMe())) {
 					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
 				}
 				

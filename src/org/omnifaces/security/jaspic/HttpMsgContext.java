@@ -34,11 +34,13 @@ public class HttpMsgContext {
     private CallbackHandler handler;
     private MessageInfo messageInfo; 
     private Subject clientSubject;
+    private AuthParameters authParameters;
     
     public HttpMsgContext(CallbackHandler handler, MessageInfo messageInfo, Subject clientSubject) {
         this.handler = handler;
         this.messageInfo = messageInfo;
         this.clientSubject = clientSubject;
+        this.authParameters = Jaspic.getAuthParameters(getRequest());       
     }
 
     /**
@@ -118,6 +120,15 @@ public class HttpMsgContext {
     
     public void cleanClientSubject() {
         Jaspic.cleanSubject(clientSubject);
+    }
+    
+    /**
+     * Returns the parameters that were provided with the {@link Jaspic#authenticate(AuthParameters)} call.
+     *  
+     * @return the parameters that were provided with the {@link Jaspic#authenticate(AuthParameters)} call, or a default instance. Never null.
+     */
+    public AuthParameters getAuthParameters() {
+    	return authParameters;
     }
     
     /**
