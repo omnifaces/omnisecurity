@@ -2,8 +2,6 @@ package org.omnifaces.security.jaspic;
 
 import java.util.Map;
 
-import javax.security.auth.Subject;
-import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthStatus;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -14,22 +12,21 @@ import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.brickred.socialauth.util.SocialAuthUtil;
 import org.omnifaces.security.cdi.Beans;
-import org.omnifaces.security.jaspic.user.OAuthAuthenticator;
+import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
 
 	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, Subject clientSubject, CallbackHandler handler,
-			boolean isProtectedResource) {
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 
 		if (isLoginRequest(request, response)) {
 			return AuthStatus.SEND_CONTINUE;
 		}
 
 		try {
-			if (isCallbackRequest(request, response, clientSubject, handler, isProtectedResource)) {
+			if (isCallbackRequest(request, response, httpMsgContext)) {
 				return AuthStatus.SUCCESS;
 			}
 		}
@@ -39,15 +36,10 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			return AuthStatus.FAILURE;
 		}
 
-		if(isProtectedResource) {
-			return AuthStatus.FAILURE;
-		}
-
 		return AuthStatus.SUCCESS;
 	}
 
-	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, Subject clientSubject, CallbackHandler handler,
-			boolean isProtectedResource) throws Exception {
+	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager manager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
 
 		if (manager != null && request.getRequestURI().endsWith("/login")) {
@@ -55,13 +47,14 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			AuthProvider authProvider = manager.connect(requestParametersMap);
 
 
-			OAuthAuthenticator reference = Beans.getReference(OAuthAuthenticator.class);
+			SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
 			Profile profile = authProvider.getUserProfile();
 
-			reference.authenticateOrRegister(profile); // TODO do something with return type
+			authenticator.authenticateOrRegister(profile); // TODO do something with return type
 
 			request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
-			Jaspic.notifyContainerAboutLogin(clientSubject, handler, reference.getUserName(), reference.getApplicationRoles());
+
+			httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 
 			return true;
 		}
@@ -72,7 +65,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response) {
 
 		SocialAuthManager manager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-		if(manager == null) {
+		if(manager == null && request.getRequestURI().endsWith("/facebook")) {
 			SocialAuthConfig config = new SocialAuthConfig();
 
 			try {
