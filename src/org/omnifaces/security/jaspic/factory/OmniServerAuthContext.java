@@ -30,7 +30,6 @@ import static org.omnifaces.security.jaspic.Utils.redirect;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -44,6 +43,7 @@ import javax.servlet.http.HttpSession;
 
 import org.omnifaces.security.jaspic.AuthResult;
 import org.omnifaces.security.jaspic.Jaspic;
+import org.omnifaces.security.jaspic.config.AuthStacks;
 import org.omnifaces.security.jaspic.config.Module;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
 
@@ -69,18 +69,19 @@ import org.omnifaces.security.jaspic.request.RequestDataDAO;
 public class OmniServerAuthContext implements ServerAuthContext {
 	
 	private static final String AUTHENTICATOR_SESSION_NAME = "org.omnifaces.security.jaspic.Authenticator";
+	private static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
 
-	private Map<String, List<Module>> stacks;
+	private AuthStacks stacks;
 	private CallbackHandler handler;
 	
 	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
-	public OmniServerAuthContext(CallbackHandler handler, Map<String, List<Module>> stacks) throws AuthException {
+	public OmniServerAuthContext(CallbackHandler handler, AuthStacks stacks) throws AuthException {
 		
 		this.stacks = stacks;
 		this.handler = handler;
 		
-		for (List<Module> modules : stacks.values()) {
+		for (List<Module> modules : stacks.getModuleStacks().values()) {
 			for (Module module : modules) {
 				module.getServerAuthModule().initialize(null, null, handler, Collections.<String, String> emptyMap());
 			}
@@ -110,7 +111,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		AuthResult finalAuthResult = new AuthResult();
 		
 		try {
-			for (Module module : stacks.values().iterator().next()) { // tmp
+			for (Module module : getModuleStack(request)) {
 				
 				AuthResult authResult = Jaspic.validateRequest(module.getServerAuthModule(), messageInfo, clientSubject, serviceSubject);
 				
@@ -155,7 +156,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	public AuthStatus secureResponse(MessageInfo messageInfo, Subject serviceSubject) throws AuthException {
 		
 		AuthStatus authStatus = null;
-		for (Module module : stacks.values().iterator().next()) { // tmp
+		for (Module module : getModuleStack((HttpServletRequest) messageInfo.getRequestMessage())) {
 			authStatus = module.getServerAuthModule().secureResponse(messageInfo, serviceSubject);
 		}
 		
@@ -164,7 +165,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-		for (Module module : stacks.values().iterator().next()) { // tmp
+		for (Module module : getModuleStack((HttpServletRequest) messageInfo.getRequestMessage())) { // tmp
 			module.getServerAuthModule().cleanSubject(messageInfo, subject);
 		}
 	}
@@ -214,6 +215,23 @@ public class OmniServerAuthContext implements ServerAuthContext {
         }
         
         return null;
+	}
+	
+	private List<Module> getModuleStack(HttpServletRequest request) {
+		
+		String authMethod = Jaspic.getAuthParameters(request).getAuthMethod();
+		
+		if (authMethod == null) {
+			authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
+			
+			if (authMethod == null) {
+				authMethod = stacks.getDefaultStackName();
+			}
+		}
+		
+		request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
+		
+		return stacks.getModuleStacks().get(authMethod);
 	}
 	
 	@SuppressWarnings("unchecked")

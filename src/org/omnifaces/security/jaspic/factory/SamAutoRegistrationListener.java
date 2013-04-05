@@ -14,9 +14,6 @@ package org.omnifaces.security.jaspic.factory;
 
 import static org.omnifaces.security.jaspic.config.ControlFlag.REQUIRED;
 
-import java.util.List;
-import java.util.Map;
-
 import javax.security.auth.message.config.AuthConfigFactory;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -25,8 +22,8 @@ import javax.servlet.annotation.WebListener;
 import org.omnifaces.security.jaspic.OmniServerAuthFilter;
 import org.omnifaces.security.jaspic.OmniServerAuthModule;
 import org.omnifaces.security.jaspic.SocialServerAuthModule;
+import org.omnifaces.security.jaspic.config.AuthStacks;
 import org.omnifaces.security.jaspic.config.AuthStacksBuilder;
-import org.omnifaces.security.jaspic.config.Module;
 
 /**
  * This listener automatically registers the SAM when the web application is starting.
@@ -72,10 +69,11 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 			.build();
 			*/
 
-		 Map<String, List<Module>> stacks = new AuthStacksBuilder()
+		 AuthStacks stacks = new AuthStacksBuilder()
 
 		 	.stack()
 		 		.name("jsf-form")
+		 		.setDefault()
 		 		.module()
 					.serverAuthModule(new OmniServerAuthModule())
 					.controlFlag(REQUIRED)
