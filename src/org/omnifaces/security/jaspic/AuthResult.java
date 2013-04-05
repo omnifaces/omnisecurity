@@ -12,14 +12,15 @@
  */
 package org.omnifaces.security.jaspic;
 
-import static javax.security.auth.message.AuthStatus.FAILURE;
+
+import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 
 public class AuthResult {
 
-	private AuthStatus authStatus = FAILURE;
+	private AuthStatus authStatus = SEND_FAILURE;
 	private Exception exception;
 
 	public AuthStatus getAuthStatus() {
@@ -39,7 +40,7 @@ public class AuthResult {
 	}
 	
 	public boolean isFailed() {
-		return authStatus == FAILURE;
+		return authStatus == SEND_FAILURE;
 	}
 	
 	public void add(AuthResult authResult) {
@@ -61,7 +62,7 @@ public class AuthResult {
 	
 	public AuthStatus throwOrFail() throws AuthException {
 		maybeThrow();
-		return FAILURE;
+		return SEND_FAILURE;
 	}
 	
 	private void maybeThrow() throws AuthException {
