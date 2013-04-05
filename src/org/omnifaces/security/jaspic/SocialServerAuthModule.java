@@ -43,6 +43,14 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 		try {
 			if (isCallbackRequest(request, response, httpMsgContext)) {
+
+				RequestData requestData = requestDAO.get(request);
+
+				if (requestData != null) {
+					redirect(response, requestData.getFullRequestURL());
+					return AuthStatus.SEND_CONTINUE;
+				}
+
 				return AuthStatus.SUCCESS;
 			}
 		}
@@ -71,12 +79,6 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			authenticator.authenticateOrRegister(profile); // TODO do something with return type
 
 			httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
-
-			RequestData requestData = requestDAO.get(request);
-
-			if (requestData != null) {
-				redirect(response, requestData.getFullRequestURL());
-			}
 
 			return true;
 		}
