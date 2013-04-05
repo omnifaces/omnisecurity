@@ -1,6 +1,8 @@
 package org.omnifaces.security.jaspic;
 
+import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
+import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import java.util.Map;
 
@@ -15,16 +17,27 @@ import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.brickred.socialauth.util.SocialAuthUtil;
 import org.omnifaces.security.cdi.Beans;
+import org.omnifaces.security.jaspic.request.RequestData;
+import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
 
-	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
+	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
-		if (isLoginRequest(request, response)) {
+	private String providerId;
+
+	public SocialServerAuthModule(String providerId) {
+		this.providerId = providerId;
+	}
+
+	@Override
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext)
+			throws AuthException {
+
+		if (isLoginRequest(request, response, httpMsgContext)) {
 			return AuthStatus.SEND_CONTINUE;
 		}
 
@@ -46,19 +59,24 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
 
-		if (socialAuthManager != null && request.getRequestURI().equals(getBaseURL(request) + "/login")) {
+		if (socialAuthManager != null && request.getRequestURI().equals("/login")) {
+			request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
+
 			Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(request);
 			AuthProvider authProvider = socialAuthManager.connect(requestParametersMap);
-
 
 			SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
 			Profile profile = authProvider.getUserProfile();
 
 			authenticator.authenticateOrRegister(profile); // TODO do something with return type
 
-			request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
-
 			httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
+
+			RequestData requestData = requestDAO.get(request);
+
+			if (requestData != null) {
+				redirect(response, requestData.getFullRequestURL());
+			}
 
 			return true;
 		}
@@ -66,10 +84,11 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		return false;
 	}
 
-	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response) {
+	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-		if(socialAuthManager == null && request.getRequestURI().endsWith("/facebook")) {
+
+		if (socialAuthManager == null && isAuthenticationRequest(request)) {
 			SocialAuthConfig config = new SocialAuthConfig();
 
 			try {
@@ -80,14 +99,16 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, socialAuthManager);
 
-				response.sendRedirect(socialAuthManager.getAuthenticationUrl("facebook", getBaseURL(request) + "/login"));
+				response.sendRedirect(socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + "/login"));
 
 				return true;
 
 			}
 			catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				AuthException authException = new AuthException();
+				authException.initCause(e);
+
+				throw authException;
 			}
 
 		}
