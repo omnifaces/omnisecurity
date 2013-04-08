@@ -262,16 +262,16 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	
 	private class AuthenticationData {
 
-		private final String userName;
+		private final String username;
 		private final List<String> applicationRoles;
 
-		public AuthenticationData(String userName, List<String> applicationRoles) {
-			this.userName = userName;
+		public AuthenticationData(String username, List<String> applicationRoles) {
+			this.username = username;
 			this.applicationRoles = unmodifiableList(new ArrayList<>(applicationRoles));
 		}
 
 		public String getUserName() {
-			return userName;
+			return username;
 		}
 
 		public List<String> getApplicationRoles() {

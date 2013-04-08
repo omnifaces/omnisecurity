@@ -20,6 +20,6 @@ package org.omnifaces.security.jaspic.user;
  */
 public interface UsernamePasswordAuthenticator extends Authenticator {
 
-	boolean authenticate(String userName, String password);
+	boolean authenticate(String username, String password);
 		
 }

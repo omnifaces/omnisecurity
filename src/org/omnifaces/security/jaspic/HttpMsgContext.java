@@ -65,11 +65,11 @@ public class HttpMsgContext {
      * will only take place (should not errors occur) after the {@link ServerAuthContext} or {@link ServerAuthModule}
      * in which this call takes place return control back to the runtime.
      * 
-     * @param userName the user name that will become the caller principal
+     * @param username the user name that will become the caller principal
      * @param roles the roles associated with the caller principal
      */
-    public void registerWithContainer(String userName, List<String> roles) {
-        registerWithContainer(userName, roles, true);
+    public void registerWithContainer(String username, List<String> roles) {
+        registerWithContainer(username, roles, true);
     }
     
     /**
@@ -83,14 +83,14 @@ public class HttpMsgContext {
      * will only take place (should not errors occur) after the {@link ServerAuthContext} or {@link ServerAuthModule}
      * in which this call takes place return control back to the runtime.
      * 
-     * @param userName the user name that will become the caller principal
+     * @param username the user name that will become the caller principal
      * @param roles the roles associated with the caller principal
      * @param registerSession if true asks the container to register an authentication setting, if false does not ask this.
      */
-    public void registerWithContainer(String userName, List<String> roles, boolean registerSession) {
-        Jaspic.notifyContainerAboutLogin(clientSubject, handler, userName, roles);
+    public void registerWithContainer(String username, List<String> roles, boolean registerSession) {
+        Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
         if (registerSession) {
-            Jaspic.setRegisterSession(messageInfo, userName, roles);
+            Jaspic.setRegisterSession(messageInfo, username, roles);
         }
     }
     
@@ -111,11 +111,11 @@ public class HttpMsgContext {
      * Note that the user name and roles being asked is an implementation detail; there is no portable way to have
      * an auth context read back the user name and roles that were processed by the {@link CallbackHandler}.
      * 
-     * @param userName the user name for which authentication should be be remembered
+     * @param username the user name for which authentication should be be remembered
      * @param roles the roles for which authentication should be remembered.
      */
-    public void setRegisterSession(String userName, List<String> roles) {
-        Jaspic.setRegisterSession(messageInfo, userName, roles);
+    public void setRegisterSession(String username, List<String> roles) {
+        Jaspic.setRegisterSession(messageInfo, username, roles);
     }
     
     public void cleanClientSubject() {

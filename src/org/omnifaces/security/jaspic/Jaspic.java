@@ -157,11 +157,11 @@ public final class Jaspic {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public static void setRegisterSession(MessageInfo messageInfo, String userName, List<String> roles) {
+	public static void setRegisterSession(MessageInfo messageInfo, String username, List<String> roles) {
 		messageInfo.getMap().put("javax.servlet.http.registerSession", TRUE.toString());
 		
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
-		request.setAttribute(LOGGEDIN_USERNAME, userName);
+		request.setAttribute(LOGGEDIN_USERNAME, username);
 		// TODO: check for existing roles and add
 		request.setAttribute(LOGGEDIN_ROLES, roles);
 	}
@@ -199,7 +199,7 @@ public final class Jaspic {
 		);
 	}
 	
-	public static void notifyContainerAboutLogin(Subject clientSubject, CallbackHandler handler, String userName, List<String> roles) {
+	public static void notifyContainerAboutLogin(Subject clientSubject, CallbackHandler handler, String username, List<String> roles) {
 		
 	    try {
     		// 1. Create a handler (kind of directive) to add the caller principal (AKA user principal =basically user name, or user id) that
@@ -213,7 +213,7 @@ public final class Jaspic {
 	        // Subject.
             // (it could become entries in a hash table inside the subject, or individual principles, or nested group principles etc.)
     		
-	        handler.handle(new Callback[] { new CallerPrincipalCallback(clientSubject, userName) });
+	        handler.handle(new Callback[] { new CallerPrincipalCallback(clientSubject, username) });
     		
     		if (!isEmpty(roles)) {
         		// 1. Create a handler to add the groups (AKA roles) that the authenticator provides. 

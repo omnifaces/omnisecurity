@@ -132,8 +132,8 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			
 			AuthParameters authParameters = httpMsgContext.getAuthParameters();
 			
-			if (notNull(authParameters.getUserName(), authParameters.getPassword())) {
-				authenticated = usernamePasswordAuthenticator.authenticate(authParameters.getUserName(), authParameters.getPassword());
+			if (notNull(authParameters.getUsername(), authParameters.getPassword())) {
+				authenticated = usernamePasswordAuthenticator.authenticate(authParameters.getUsername(), authParameters.getPassword());
 				authenticator = usernamePasswordAuthenticator;
 			} else if (cookie != null && tokenAuthenticator != null) {
 				authenticated = tokenAuthenticator.authenticate(cookie.getValue());
