@@ -20,27 +20,36 @@ import javax.servlet.http.HttpSession;
 /**
  * This class saves the data of a HttpServletRequest into the session as a RequestData instance, and has
  * methods to retrieve and remove this data again.
- * 
+ *
  * @author Arjan Tijms
  *
  */
 public class RequestDataDAO {
-	
+
 	private static final String ORIGINAL_REQUEST_DATA_SESSION_NAME = "org.omnifaces.security.jaspic.original.request";
-	
+
 	public void save(HttpServletRequest request) {
 		request.getSession().setAttribute(ORIGINAL_REQUEST_DATA_SESSION_NAME, copy(request));
 	}
-	
+
+	public void saveUrlOnly(HttpServletRequest request, String url) {
+		RequestData requestData = new RequestData();
+
+		requestData.setRequestURL(url);
+		requestData.setRestoreRequest(false);
+
+		request.getSession().setAttribute(ORIGINAL_REQUEST_DATA_SESSION_NAME, requestData);
+	}
+
 	public RequestData get(HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		if (session == null) {
 			return null;
 		}
-		
+
 		return (RequestData) session.getAttribute(ORIGINAL_REQUEST_DATA_SESSION_NAME);
 	}
-	
+
 	public void remove(HttpServletRequest request) {
 		request.getSession().removeAttribute(ORIGINAL_REQUEST_DATA_SESSION_NAME);
 	}

@@ -14,7 +14,7 @@ package org.omnifaces.security.jaspic;
 
 /**
  * Parameters that are provided along with an authentication request.
- * 
+ *
  * @author Arjan Tijms
  *
  */
@@ -25,28 +25,35 @@ public class AuthParameters {
 	private Boolean rememberMe;
 	private String authMethod;
 
+	private String redirectUrl;
+
 	public AuthParameters username(String username) {
 		setUsername(username);
 		return this;
 	}
-	
+
 	public AuthParameters password(String passWord) {
 		setPassword(passWord);
 		return this;
 	}
-	
+
 	public AuthParameters rememberMe(boolean rememberMe) {
 		setRememberMe(rememberMe);
 		return this;
 	}
-	
+
 	public AuthParameters authMethod(String authMethod) {
 		setAuthMethod(authMethod);
 		return this;
 	}
-	
+
+	public AuthParameters redirectUrl(String redirectUrl) {
+		setRedirectUrl(redirectUrl);
+		return this;
+	}
+
 	// Getters/setters
-	
+
 	public String getUsername() {
 		return username;
 	}
@@ -77,6 +84,14 @@ public class AuthParameters {
 
 	public void setAuthMethod(String authMethod) {
 		this.authMethod = authMethod;
+	}
+
+	public String getRedirectUrl() {
+		return redirectUrl;
+	}
+
+	public void setRedirectUrl(String redirectUrl) {
+		this.redirectUrl = redirectUrl;
 	}
 
 }

@@ -41,6 +41,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.omnifaces.security.jaspic.AuthParameters;
 import org.omnifaces.security.jaspic.AuthResult;
 import org.omnifaces.security.jaspic.Jaspic;
 import org.omnifaces.security.jaspic.config.AuthStacks;
@@ -62,25 +63,25 @@ import org.omnifaces.security.jaspic.request.RequestDataDAO;
  * <p>
  * Note: As explained above, parts of this implementation are redundant with JASPIC 1.0 MR2. Hopefully the Filter workaround will
  * be redundant too with some future version of JASPIC.
- * 
+ *
  * @author Arjan Tijms
  *
  */
 public class OmniServerAuthContext implements ServerAuthContext {
-	
+
 	private static final String AUTHENTICATOR_SESSION_NAME = "org.omnifaces.security.jaspic.Authenticator";
 	private static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
 
 	private AuthStacks stacks;
 	private CallbackHandler handler;
-	
+
 	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
 	public OmniServerAuthContext(CallbackHandler handler, AuthStacks stacks) throws AuthException {
-		
+
 		this.stacks = stacks;
 		this.handler = handler;
-		
+
 		for (List<Module> modules : stacks.getModuleStacks().values()) {
 			for (Module module : modules) {
 				module.getServerAuthModule().initialize(null, null, handler, Collections.<String, String> emptyMap());
@@ -90,51 +91,56 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-		
+
 		AuthStatus status = doValidateRequest(messageInfo, clientSubject, serviceSubject);
 		Jaspic.setLastStatus((HttpServletRequest) messageInfo.getRequestMessage(), status);
-		
+
 		return status;
 	}
-	
+
 	public AuthStatus doValidateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-	
+
 		HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
 		HttpServletResponse response = (HttpServletResponse) messageInfo.getResponseMessage();
-		
+
 		AuthStatus status = checkSpecialCases(request, response, messageInfo, clientSubject);
 		if (status != null) {
 		    return status;
 		}
-		
+
+		AuthParameters authParameters = Jaspic.getAuthParameters(request);
+		if(isExplicitAuthCall(request) && authParameters != null && authParameters.getRedirectUrl() != null) {
+			requestDAO.saveUrlOnly(request, authParameters.getRedirectUrl());
+		}
+
 		boolean requiredFailed = false;
 		AuthResult finalAuthResult = new AuthResult();
-		
+
 		try {
 			for (Module module : getModuleStack(request)) {
-				
+
 				AuthResult authResult = Jaspic.validateRequest(module.getServerAuthModule(), messageInfo, clientSubject, serviceSubject);
-				
+
 				if (authResult.getAuthStatus() == FAILURE) {
 		            throw new IllegalStateException("Servlet Container Profile SAM should not return status FAILURE. This is for CLIENT SAMs only");
 		        }
-				
+
 				finalAuthResult.add(authResult);
-				
+
 				switch (module.getControlFlag()) {
-					
+
 					case REQUIRED:
 						if (authResult.isFailed()) {
 							requiredFailed = true;
 						}
 						break;
-						
+
 					case REQUISITE:
 						if (authResult.isFailed()) {
 							return finalAuthResult.throwOrFail();
 						}
 						break;
-						
+
 					case SUFFICIENT:
 						if (!authResult.isFailed() && !requiredFailed) {
 							return authResult.getAuthStatus();
@@ -142,9 +148,9 @@ public class OmniServerAuthContext implements ServerAuthContext {
 						break;
 				}
 			}
-			
+
 			return finalAuthResult.throwOrReturnStatus();
-			
+
 		} finally {
 			if (!finalAuthResult.isFailed() && isRegisterSession(messageInfo)) {
 				saveAuthentication(request);
@@ -154,12 +160,12 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 	@Override
 	public AuthStatus secureResponse(MessageInfo messageInfo, Subject serviceSubject) throws AuthException {
-		
+
 		AuthStatus authStatus = null;
 		for (Module module : getModuleStack((HttpServletRequest) messageInfo.getRequestMessage())) {
 			authStatus = module.getServerAuthModule().secureResponse(messageInfo, serviceSubject);
 		}
-		
+
 		return authStatus;
 	}
 
@@ -169,9 +175,9 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			module.getServerAuthModule().cleanSubject(messageInfo, subject);
 		}
 	}
-	
+
 	private AuthStatus checkSpecialCases(HttpServletRequest request, HttpServletResponse response, MessageInfo messageInfo, Subject clientSubject) throws AuthException {
-	    
+
 	    // Check if this is a logout request.
         //
         // With JASPIC 1.0MR1 request#logout is not profiled and the call with most runtimes will not reach this auth context.
@@ -183,7 +189,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
             cleanSubject(messageInfo, clientSubject);
             return SEND_CONTINUE;
         }
-        
+
         // Check to see if we're already authenticated.
         //
         // With JASPIC 1.0MR1, the container doesn't remember authentication data between requests and we thus have to
@@ -194,72 +200,72 @@ public class OmniServerAuthContext implements ServerAuthContext {
         if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
             return SUCCESS;
         }
-        
+
         if (!isExplicitAuthCall(request)) {
-            
+
             // Check to see if this request is to a protected resource
             //
             // We'll save the current request here, so we can redirect to the original URL after
             // authentication succeeds and when we start processing that URL wrap the request
             // with one containing the original headers, cookies, etc.
             if (isProtectedResource(messageInfo)) {
-                
+
                 requestDAO.save(request);
                 redirect(response, getBaseURL(request) + "/login.xhtml");
-                            
+
                 return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
             }
 
             // No login request and no protected resource. Just continue.
             return SUCCESS;
         }
-        
+
         return null;
 	}
-	
+
 	private List<Module> getModuleStack(HttpServletRequest request) {
-		
+
 		String authMethod = Jaspic.getAuthParameters(request).getAuthMethod();
-		
+
 		if (authMethod == null) {
 			authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
-			
+
 			if (authMethod == null) {
 				authMethod = stacks.getDefaultStackName();
 			}
 		}
-		
+
 		request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
-		
+
 		return stacks.getModuleStacks().get(authMethod);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void saveAuthentication(HttpServletRequest request) {
 		request.getSession().setAttribute(
-			AUTHENTICATOR_SESSION_NAME, 
+			AUTHENTICATOR_SESSION_NAME,
 			new AuthenticationData(
 				(String) request.getAttribute(LOGGEDIN_USERNAME),
-				(List<String>) request.getAttribute(LOGGEDIN_ROLES)		
+				(List<String>) request.getAttribute(LOGGEDIN_ROLES)
 			)
 		);
 	}
-	
+
 	private boolean canReAuthenticate(HttpServletRequest request, Subject clientSubject, CallbackHandler handler) {
-		
+
 		HttpSession session = request.getSession(false);
 		if (session != null) {
 			AuthenticationData authenticationData = (AuthenticationData) session.getAttribute(AUTHENTICATOR_SESSION_NAME);
 			if (authenticationData != null) {
 				notifyContainerAboutLogin(clientSubject, handler, authenticationData.getUserName(), authenticationData.getApplicationRoles());
-				
+
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	private class AuthenticationData {
 
 		private final String username;

@@ -8,7 +8,7 @@
 	<artifactId>omnifaces-security</artifactId>
 	<packaging>jar</packaging>
 	<name>OmniSecurity</name>
-	<version>0.1</version>
+	<version>0.2-SNAPSHOT</version>
 	<description>Java EE, JSF and JASPIC integrated security</description>
 	<url>http://code.google.com/p/omnisecurity</url>
 	<organization>
@@ -40,15 +40,15 @@
 
 	<developers>
 		<developer>
-			<id>balusc</id>
-			<name>Bauke Scholtz</name>
-			<email>balusc@gmail.com</email>
-		</developer>
-
-		<developer>
 			<id>arjan.tijms</id>
 			<name>Arjan Tijms</name>
 			<email>arjan.tijms@gmail.com</email>
+		</developer>
+		
+		<developer>
+			<id>jan.beernink</id>
+			<name>Jan Beernink</name>
+			<email>jan.beernink@gmail.com</email>
 		</developer>
 	</developers>
 

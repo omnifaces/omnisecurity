@@ -23,7 +23,7 @@ import javax.servlet.http.HttpServletRequest;
 
 /**
  * This class stores the core data that makes up an HttpServletRequest.
- * 
+ *
  * @author Arjan Tijms
  *
  */
@@ -37,7 +37,8 @@ public class RequestData {
 	private String method;
 	private String requestURL;
 	private String queryString;
-	
+
+	private boolean restoreRequest = true;
 
 	public Cookie[] getCookies() {
 		return cookies;
@@ -94,21 +95,29 @@ public class RequestData {
 	public void setRequestURL(String requestURL) {
 		this.requestURL = requestURL;
 	}
-	
+
+	public boolean isRestoreRequest() {
+		return restoreRequest;
+	}
+
+	public void setRestoreRequest(boolean restoreRequest) {
+		this.restoreRequest = restoreRequest;
+	}
+
 	public String getFullRequestURL() {
 		return buildFullRequestURL(requestURL, queryString);
 	}
-	
+
 	public boolean matchesRequest(HttpServletRequest request) {
 		// (or use requestURI instead of requestURL?)
 		return getFullRequestURL().equals(buildFullRequestURL(request.getRequestURL().toString(), request.getQueryString()));
 	}
-	
+
 	@Override
 	public String toString() {
 		return String.format("%s %s", method, getFullRequestURL());
 	}
-	
+
 	private String buildFullRequestURL(String requestURL, String queryString) {
 		return requestURL + (isEmpty(queryString) ? "" : "?" + queryString);
 	}
