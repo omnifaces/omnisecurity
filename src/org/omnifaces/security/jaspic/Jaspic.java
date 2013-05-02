@@ -115,12 +115,14 @@ public final class Jaspic {
 	
 	public static void logout(HttpServletRequest request, HttpServletResponse response) {
 		try {
+			
+			request.logout();
+			
 			// Hack to signal to the SAM that we are logging out. Only works this way
 			// for the OmniServerAuthModule.
 			request.setAttribute(IS_LOGOUT, true);
 			request.authenticate(response);
 			
-			request.logout();
 			request.getSession().invalidate();
 		} catch (ServletException | IOException e) {
 			throw new IllegalArgumentException(e);

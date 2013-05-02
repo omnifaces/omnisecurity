@@ -10,7 +10,7 @@
 	
 	<!-- Properties -->
 	
-	<property name="version" value="0.1" />
+	<property name="version" value="0.2-SNAPSHOT" />
 	<property name="artifactId" value="omnifaces-security" />
 
 	<tstamp>
