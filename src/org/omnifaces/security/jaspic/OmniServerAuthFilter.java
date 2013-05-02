@@ -65,7 +65,7 @@ public class OmniServerAuthFilter extends HttpFilter {
 			// We restore the original request here by providing a wrapped request. This will ensure the
 			// original request parameters (GET + POST) as well as the original cookies etc are available again.
 			if (requestData != null && requestData.matchesRequest(request)) {
-				if(requestData.isRestoreRequest()) {
+				if (requestData.isRestoreRequest()) {
 					newRequest = new HttpServletRequestDelegator(request, requestData);
 				}
 				requestDAO.remove(request);

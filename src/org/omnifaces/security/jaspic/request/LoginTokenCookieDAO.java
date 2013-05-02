@@ -59,7 +59,7 @@ public class LoginTokenCookieDAO {
 		cookie.setMaxAge(0);
 		cookie.setPath(request.getContextPath());
 		
-		if ("localhost".equals(request.getServerName())) {
+		if (!"localhost".equals(request.getServerName())) {
 			cookie.setDomain(request.getServerName());
 		}
 
