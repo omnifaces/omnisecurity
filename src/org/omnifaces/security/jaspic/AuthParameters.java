@@ -23,6 +23,7 @@ public class AuthParameters {
 	private String username;
 	private String password;
 	private Boolean rememberMe;
+	private Boolean noPassword;
 	private String authMethod;
 
 	private String redirectUrl;
@@ -39,6 +40,11 @@ public class AuthParameters {
 
 	public AuthParameters rememberMe(boolean rememberMe) {
 		setRememberMe(rememberMe);
+		return this;
+	}
+	
+	public AuthParameters noPassword(boolean noPassword) {
+		setNoPassword(noPassword);
 		return this;
 	}
 
@@ -92,6 +98,14 @@ public class AuthParameters {
 
 	public void setRedirectUrl(String redirectUrl) {
 		this.redirectUrl = redirectUrl;
+	}
+
+	public Boolean getNoPassword() {
+		return noPassword;
+	}
+
+	public void setNoPassword(Boolean noPassword) {
+		this.noPassword = noPassword;
 	}
 
 }

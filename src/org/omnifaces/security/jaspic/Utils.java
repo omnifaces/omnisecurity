@@ -12,8 +12,6 @@
  */
 package org.omnifaces.security.jaspic;
 
-import static org.omnifaces.util.Utils.coalesce;
-
 import java.io.IOException;
 
 import javax.servlet.http.HttpServletRequest;
@@ -30,7 +28,13 @@ public final class Utils {
     private Utils() {}
 	
 	public static boolean notNull(Object... objects) {
-		return coalesce(objects) != null;
+		for (Object object : objects) {
+			if (object == null) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 	
 	public static String getBaseURL(HttpServletRequest request) {

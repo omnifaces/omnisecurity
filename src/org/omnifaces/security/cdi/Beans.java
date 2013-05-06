@@ -38,6 +38,17 @@ public class Beans {
 
 		return (T) beanManager.getReference(bean, beanClass, beanManager.createCreationalContext(bean));
 	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> T getReferenceOrNull(Class<T> beanClass, BeanManager beanManager) {
+		try {
+			Bean<T> bean = (Bean<T>) beanManager.resolve(beanManager.getBeans(beanClass));
+
+			return (T) beanManager.getReference(bean, beanClass, beanManager.createCreationalContext(bean));
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
 	public static <T> T getInstance(final Class<T> type, final Class<? extends Annotation> scope) {
 		return getInstance(type, scope, getBeanManager());

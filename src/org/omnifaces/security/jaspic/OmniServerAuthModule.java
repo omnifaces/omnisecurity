@@ -15,7 +15,8 @@ package org.omnifaces.security.jaspic;
 import static java.lang.Boolean.TRUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
-import static org.omnifaces.security.cdi.Beans.getReference;
+import static org.omnifaces.security.cdi.Beans.getReferenceOrNull;
+import static org.omnifaces.security.jaspic.Jaspic.isRefresh;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
@@ -34,6 +35,7 @@ import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.Authenticator;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
+import org.omnifaces.security.jaspic.user.UsernameOnlyAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
 
 
@@ -101,6 +103,10 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 	@Override
 	public void cleanHttpSubject(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 		
+		if (isRefresh(request)) {
+			return;
+		}
+		
 		// If there's a "remember me" cookie present, remove it.
 		if (cookieDAO.get(request) != null) {
 			cookieDAO.remove(request, response);
@@ -124,6 +130,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			
 			UsernamePasswordAuthenticator usernamePasswordAuthenticator = delegators.getAuthenticator();
 			TokenAuthenticator tokenAuthenticator =	delegators.getTokenAuthenticator();
+			UsernameOnlyAuthenticator usernameOnlyAuthenticator = delegators.getUsernameOnlyAuthenticator();
 			
 			Cookie cookie = cookieDAO.get(request);
 			
@@ -135,7 +142,10 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			if (notNull(authParameters.getUsername(), authParameters.getPassword())) {
 				authenticated = usernamePasswordAuthenticator.authenticate(authParameters.getUsername(), authParameters.getPassword());
 				authenticator = usernamePasswordAuthenticator;
-			} else if (cookie != null && tokenAuthenticator != null) {
+			} else if (notNull(usernameOnlyAuthenticator, authParameters.getUsername()) && authParameters.getNoPassword()) {
+				authenticated = usernameOnlyAuthenticator.authenticateWithoutPassword(authParameters.getUsername());
+				authenticator = usernameOnlyAuthenticator;
+			} else if (notNull(tokenAuthenticator, cookie)) {
 				authenticated = tokenAuthenticator.authenticate(cookie.getValue());
 				
 				if (!authenticated) {
@@ -175,8 +185,9 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			BeanManager beanManager = Beans.getBeanManager();
 
 			return new Delegators(
-				getReference(UsernamePasswordAuthenticator.class, beanManager),
-				getReference(TokenAuthenticator.class, beanManager)
+				getReferenceOrNull(UsernamePasswordAuthenticator.class, beanManager),
+				getReferenceOrNull(TokenAuthenticator.class, beanManager),
+				getReferenceOrNull(UsernameOnlyAuthenticator.class, beanManager)
 			);
 		} catch (Exception e) {
 			return null;
@@ -187,10 +198,12 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 
 		private final UsernamePasswordAuthenticator authenticator;
 		private final TokenAuthenticator tokenAuthenticator;
+		private final UsernameOnlyAuthenticator usernameOnlyAuthenticator;
 
-		public Delegators(UsernamePasswordAuthenticator authenticator, TokenAuthenticator tokenAuthenticator) {
+		public Delegators(UsernamePasswordAuthenticator authenticator, TokenAuthenticator tokenAuthenticator, UsernameOnlyAuthenticator usernameOnlyAuthenticator) {
 			this.authenticator = authenticator;
 			this.tokenAuthenticator = tokenAuthenticator;
+			this.usernameOnlyAuthenticator = usernameOnlyAuthenticator;
 		}
 
 		public UsernamePasswordAuthenticator getAuthenticator() {
@@ -199,6 +212,10 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 
 		public TokenAuthenticator getTokenAuthenticator() {
 			return tokenAuthenticator;
+		}
+
+		public UsernameOnlyAuthenticator getUsernameOnlyAuthenticator() {
+			return usernameOnlyAuthenticator;
 		}
 	}
 	

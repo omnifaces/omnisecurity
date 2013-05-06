@@ -49,6 +49,7 @@ public final class Jaspic {
 	public static final String IS_AUTHENTICATION_FROM_FILTER = "org.omnifaces.security.message.request.authenticationFromFilter";
 	public static final String IS_SECURE_RESPONSE = "org.omnifaces.security.message.request.secureResponse";
 	public static final String IS_LOGOUT = "org.omnifaces.security.message.request.isLogout";
+	public static final String IS_REFRESH = "org.omnifaces.security.message.request.isRefresh";
 	
 	public static final String AUTH_PARAMS = "org.omnifaces.security.message.request.authParams";
 	
@@ -70,6 +71,10 @@ public final class Jaspic {
 	
 	public static boolean authenticate(AuthParameters authParameters) {
 		return authenticate(Faces.getRequest(), Faces.getResponse(), authParameters);
+	}
+	
+	public static boolean refreshAuthentication(AuthParameters authParameters) {
+		return refreshAuthentication(Faces.getRequest(), Faces.getResponse(), authParameters);
 	}
 	
 	public static boolean authenticate(HttpServletRequest request, HttpServletResponse response, AuthParameters authParameters) {
@@ -97,6 +102,21 @@ public final class Jaspic {
 			throw new IllegalArgumentException(e);
 		} finally {
 			request.removeAttribute(IS_AUTHENTICATION_FROM_FILTER);
+		}
+	}
+	
+	public static boolean refreshAuthentication(HttpServletRequest request, HttpServletResponse response, AuthParameters authParameters) {
+		try {
+			request.setAttribute(IS_REFRESH, true);
+			// Doing an explicit logout is actually not really nice, as it has some side-effects that we need to counter
+			// (like a SAM supporting remember-me clearing its remember-me cookie, etc). But there doesn't seem to be another
+			// way in JASPIC
+			request.logout();
+			return authenticate(request, response, authParameters);
+		} catch (ServletException e) {
+			throw new IllegalArgumentException(e);
+		} finally {
+			request.removeAttribute(IS_REFRESH);
 		}
 	}
 	
@@ -182,6 +202,10 @@ public final class Jaspic {
 	
 	public static boolean isLogoutRequest(HttpServletRequest request) {
 		return TRUE.equals(request.getAttribute(IS_LOGOUT));
+	}
+	
+	public static boolean isRefresh(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(IS_REFRESH));
 	}
 	
 	/**
