@@ -30,6 +30,10 @@ public class Beans {
 	public static <T> T getReference(Class<T> beanClass) {
 		return getReference(beanClass, getBeanManager());
 	}
+	
+	public static <T> T getReferenceOrNull(Class<T> beanClass) {
+		return getReferenceOrNull(beanClass, getBeanManager());
+	}
 
 	@SuppressWarnings("unchecked")
 	public static <T> T getReference(Class<T> beanClass, BeanManager beanManager) {

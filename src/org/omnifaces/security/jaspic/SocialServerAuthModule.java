@@ -12,6 +12,8 @@
  */
 package org.omnifaces.security.jaspic;
 
+import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
+import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
 import static org.omnifaces.security.jaspic.Utils.redirect;
@@ -31,6 +33,7 @@ import org.brickred.socialauth.util.SocialAuthUtil;
 import org.omnifaces.security.cdi.Beans;
 import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
+import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
@@ -50,7 +53,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			throws AuthException {
 
 		if (isLoginRequest(request, response, httpMsgContext)) {
-			return AuthStatus.SEND_CONTINUE;
+			return SEND_CONTINUE;
 		}
 
 		try {
@@ -60,10 +63,10 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 				if (requestData != null) {
 					redirect(response, requestData.getFullRequestURL());
-					return AuthStatus.SEND_CONTINUE;
+					return SEND_CONTINUE;
 				}
 
-				return AuthStatus.SUCCESS;
+				return SUCCESS;
 			}
 		}
 		catch (Exception e) {
@@ -73,7 +76,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			throw authException;
 		}
 
-		return AuthStatus.SUCCESS;
+		return SUCCESS;
 	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
@@ -106,7 +109,13 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			SocialAuthConfig config = new SocialAuthConfig();
 
 			try {
-				config.load();
+				
+				SocialAuthPropertiesProvider propertiesProvider = Beans.getReferenceOrNull(SocialAuthPropertiesProvider.class);
+				if (propertiesProvider != null) {
+					config.load(propertiesProvider.getProperties());
+				} else {
+					config.load();
+				}
 
 				socialAuthManager = new SocialAuthManager();
 				socialAuthManager.setSocialAuthConfig(config);
