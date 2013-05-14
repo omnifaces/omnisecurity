@@ -34,10 +34,6 @@ public class LoginTokenCookieDAO {
 		Cookie cookie = new Cookie(COOKIE_NAME, value);
 		cookie.setMaxAge(MAX_AGE);
 		cookie.setPath(request.getContextPath());
-		
-		if (!"localhost".equals(request.getServerName())) {
-			cookie.setDomain(request.getServerName());
-		}
 
 		response.addCookie(cookie);
 	}
@@ -58,10 +54,6 @@ public class LoginTokenCookieDAO {
 		Cookie cookie = new Cookie(COOKIE_NAME, null);
 		cookie.setMaxAge(0);
 		cookie.setPath(request.getContextPath());
-		
-		if (!"localhost".equals(request.getServerName())) {
-			cookie.setDomain(request.getServerName());
-		}
 
 		response.addCookie(cookie);
 	}
