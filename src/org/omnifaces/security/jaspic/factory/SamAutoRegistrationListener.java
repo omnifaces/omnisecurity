@@ -100,6 +100,13 @@ public class SamAutoRegistrationListener implements ServletContextListener {
 					.controlFlag(REQUIRED)
 					.add()
 				.add()
+			.stack()
+		 		.name("social-authentication-googlePlus")
+		 		.module()
+					.serverAuthModule(new SocialServerAuthModule("googlePlus"))
+					.controlFlag(REQUIRED)
+					.add()
+				.add()
 			.build();
 
 
