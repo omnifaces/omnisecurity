@@ -36,6 +36,7 @@ import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
+import org.omnifaces.util.Utils;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
@@ -60,7 +61,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		try {
 			if (isCallbackRequest(request, response, httpMsgContext)) {
 
-				if (doSocialLogin(request, httpMsgContext)) {
+				if (doSocialLogin(request, response, httpMsgContext)) {
 					RequestData requestData = requestDAO.get(request);
 
 					if (requestData != null) {
@@ -92,7 +93,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		return false;
 	}
 
-	private boolean doSocialLogin(HttpServletRequest request, HttpMsgContext httpMsgContext) throws Exception {
+	private boolean doSocialLogin(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
 		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
 
@@ -102,10 +103,17 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
 		Profile profile = authProvider.getUserProfile();
 
-		if (authenticator.authenticateOrRegister(profile)) {
-			httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
+		try {
+			if (authenticator.authenticateOrRegister(profile)) {
+				httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 
-			return true;
+				return true;
+			}
+		}
+		catch (RegistrationException e) {
+			if(e.getReason() != null) {
+				response.sendRedirect("/login?failure-reason=" + Utils.encodeURL(e.getReason()));
+			}
 		}
 		return false;
 	}
