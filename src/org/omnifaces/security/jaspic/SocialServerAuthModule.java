@@ -13,6 +13,7 @@
 package org.omnifaces.security.jaspic;
 
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
+import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
@@ -59,14 +60,18 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		try {
 			if (isCallbackRequest(request, response, httpMsgContext)) {
 
-				RequestData requestData = requestDAO.get(request);
+				if (doSocialLogin(request, httpMsgContext)) {
+					RequestData requestData = requestDAO.get(request);
 
-				if (requestData != null) {
-					redirect(response, requestData.getFullRequestURL());
-					return SEND_CONTINUE;
+					if (requestData != null) {
+						redirect(response, requestData.getFullRequestURL());
+						return SEND_CONTINUE;
+					}
+
+					return SUCCESS;
+				} else {
+					return SEND_FAILURE;
 				}
-
-				return SUCCESS;
 			}
 		}
 		catch (Exception e) {
@@ -80,24 +85,28 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
+		if (request.getRequestURI().equals("/login") && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
+			return true;
+		}
+
+		return false;
+	}
+
+	private boolean doSocialLogin(HttpServletRequest request, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
+		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
 
-		if (socialAuthManager != null && request.getRequestURI().equals("/login")) {
-			request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
+		Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(request);
+		AuthProvider authProvider = socialAuthManager.connect(requestParametersMap);
 
-			Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(request);
-			AuthProvider authProvider = socialAuthManager.connect(requestParametersMap);
+		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
+		Profile profile = authProvider.getUserProfile();
 
-			SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
-			Profile profile = authProvider.getUserProfile();
-
-			authenticator.authenticateOrRegister(profile); // TODO do something with return type
-
+		if (authenticator.authenticateOrRegister(profile)) {
 			httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 
 			return true;
 		}
-
 		return false;
 	}
 
@@ -109,11 +118,12 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			SocialAuthConfig config = new SocialAuthConfig();
 
 			try {
-				
+
 				SocialAuthPropertiesProvider propertiesProvider = Beans.getReferenceOrNull(SocialAuthPropertiesProvider.class);
 				if (propertiesProvider != null) {
 					config.load(propertiesProvider.getProperties());
-				} else {
+				}
+				else {
 					config.load();
 				}
 
