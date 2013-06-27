@@ -109,7 +109,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		}
 
 		AuthParameters authParameters = Jaspic.getAuthParameters(request);
-		if(isExplicitAuthCall(request) && authParameters != null && authParameters.getRedirectUrl() != null) {
+		if (isExplicitAuthCall(request) && authParameters != null && authParameters.getRedirectUrl() != null) {
 			requestDAO.saveUrlOnly(request, authParameters.getRedirectUrl());
 		}
 

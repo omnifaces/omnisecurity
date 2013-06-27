@@ -111,7 +111,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			}
 		}
 		catch (RegistrationException e) {
-			if(e.getReason() != null) {
+			if (e.getReason() != null) {
 				response.sendRedirect("/login?failure-reason=" + Utils.encodeURL(e.getReason()));
 			}
 		}
