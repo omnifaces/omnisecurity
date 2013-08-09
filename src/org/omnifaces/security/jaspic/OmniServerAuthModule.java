@@ -21,7 +21,6 @@ import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOG
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
 import static org.omnifaces.security.jaspic.Utils.notNull;
-import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import javax.enterprise.inject.spi.BeanManager;
 import javax.security.auth.message.AuthStatus;
@@ -31,8 +30,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.omnifaces.security.cdi.Beans;
 import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
-import org.omnifaces.security.jaspic.request.RequestData;
-import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.Authenticator;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernameOnlyAuthenticator;
@@ -54,7 +51,6 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  */
 public class OmniServerAuthModule extends HttpServerAuthModule {
 	
-	private final RequestDataDAO requestDAO = new RequestDataDAO();
 	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
 	
 	static enum LoginResult {
@@ -72,18 +68,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 		switch (isLoginRequest(request, response, httpMsgContext)) {
 		
 			case LOGIN_SUCCESS:
-		
-				// Check if there's a previously saved request. This is the case if a protected request was
-				// accessed earlier and the user was subsequently redirected to the login page.
-				RequestData requestData = requestDAO.get(request);
-				if (requestData != null) {
-					
-					// We redirect the user to the original URL that was requested. The doFilter method below will
-					// hit when this new URL is requested and uses RequestData to restore the headers, cookies etc
-					// from the original request.
-					redirect(response, requestData.getFullRequestURL());
-				} 
-				
 				return SUCCESS;
 				
 			case LOGIN_FAILURE:
@@ -94,6 +78,12 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 				// Note: In the case of this SAM, login is called following a request#authenticate only, so in that case a non-SUCCESS
 				//       return only means not to process the handler.
 				return SEND_FAILURE; 
+				
+			case NO_LOGIN:
+				// Do nothing (officially we need to execute the unauthenticated user protocol here, but just doing nothing
+				// typically works as well, additionally for JBoss this is even better as it remembers the unauthenticated
+				// user :|)
+				break;
 		}
 
 		// No login request and no protected resource. Just continue.

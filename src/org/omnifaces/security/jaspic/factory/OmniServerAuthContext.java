@@ -146,6 +146,10 @@ public class OmniServerAuthContext implements ServerAuthContext {
 							return authResult.getAuthStatus();
 						}
 						break;
+						
+					case OPTIONAL:
+						// Do nothing
+						break;
 				}
 			}
 
@@ -184,7 +188,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
         // So OmniSecurity uses a hacky workaround where Jaspic.logout actually calls authenticate with a request attribute that we
         // check here and manually divert to cleanSubject.
         //
-        // With JASPIC 1.0MR2 request#logout will directly go to cleanSubject
+        // With JASPIC 1.1 request#logout will directly go to cleanSubject
         if (isLogoutRequest(request)) {
             cleanSubject(messageInfo, clientSubject);
             return SEND_CONTINUE;
@@ -196,7 +200,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
         // re-authenticate before every request. It's important to skip this step if authentication is explicitly requested, otherwise
         // we risk re-authenticating instead of processing a new login request.
         //
-        // With JASPIC 1.0MR2, the container takes care of this detail if so requested.
+        // With JASPIC 1.1, the container partially takes care of this detail if so requested.
         if (!isAuthenticationRequest(request) && canReAuthenticate(request, clientSubject, handler)) {
             return SUCCESS;
         }
@@ -211,7 +215,8 @@ public class OmniServerAuthContext implements ServerAuthContext {
             if (isProtectedResource(messageInfo)) {
 
                 requestDAO.save(request);
-                redirect(response, getBaseURL(request) + "/login.xhtml");
+                // TODO: /login and the query parameter used here should be made configurable.
+                redirect(response, getBaseURL(request) + "/login?new=false");
 
                 return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
             }

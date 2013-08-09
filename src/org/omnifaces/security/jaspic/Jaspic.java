@@ -50,6 +50,7 @@ public final class Jaspic {
 	public static final String IS_SECURE_RESPONSE = "org.omnifaces.security.message.request.secureResponse";
 	public static final String IS_LOGOUT = "org.omnifaces.security.message.request.isLogout";
 	public static final String IS_REFRESH = "org.omnifaces.security.message.request.isRefresh";
+	public static final String DID_AUTHENTICATION = "org.omnifaces.security.message.request.didAuthentication";
 	
 	public static final String AUTH_PARAMS = "org.omnifaces.security.message.request.authParams";
 	
@@ -267,6 +268,31 @@ public final class Jaspic {
 	
 	public static AuthStatus getLastStatus(HttpServletRequest request) {
 		return (AuthStatus) request.getAttribute(LAST_AUTH_STATUS);
+	}
+	
+	/**
+	 * Should be called when the callback handler is used with the intention that an actual
+	 * user is going to be authenticated (as opposed to using the handler for the "do nothing" protocol
+	 * which uses the unauthenticated identity).
+	 * 
+	 */
+	public static void setDidAuthentication(HttpServletRequest request) {
+		request.setAttribute(DID_AUTHENTICATION, TRUE);
+	}
+	
+	/**
+	 * Returns true if a SAM has indicated that it intended authentication to be happening during
+	 * the current request.
+	 * Does not necessarily mean that authentication has indeed succeeded, for this
+	 * the actual user/caller principal should be checked as well.
+	 * 
+	 */
+	public static boolean isDidAuthentication(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(DID_AUTHENTICATION));
+	}
+	
+	public static boolean isDidAuthenticationAndSucceeded(HttpServletRequest request) {
+		return TRUE.equals(request.getAttribute(DID_AUTHENTICATION)) && request.getUserPrincipal() != null;
 	}
 	
 }

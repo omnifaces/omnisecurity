@@ -15,6 +15,8 @@ package org.omnifaces.security.jaspic;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Jaspic.authenticateFromFilter;
 import static org.omnifaces.security.jaspic.Jaspic.getLastStatus;
+import static org.omnifaces.security.jaspic.Jaspic.isDidAuthenticationAndSucceeded;
+import static org.omnifaces.security.jaspic.Utils.redirect;
 import static org.omnifaces.util.Utils.isOneOf;
 
 import java.io.IOException;
@@ -56,23 +58,42 @@ public class OmniServerAuthFilter extends HttpFilter {
 
 		if (isOneOf(getLastStatus(request), SUCCESS, null)) {
 
-			RequestData requestData = requestDAO.get(request);
 			HttpServletRequest newRequest = request;
-
-			// If there was a saved request, it means the user was originally redirected from
-			// a protected resource to authenticate and is not redirected back to the original resource.
-			//
-			// We restore the original request here by providing a wrapped request. This will ensure the
-			// original request parameters (GET + POST) as well as the original cookies etc are available again.
-			if (requestData != null && requestData.matchesRequest(request)) {
-				if (requestData.isRestoreRequest()) {
-					newRequest = new HttpServletRequestDelegator(request, requestData);
+			
+			RequestData requestData = requestDAO.get(request);
+			if (requestData != null) {
+				
+				boolean matchesRequest = requestData.matchesRequest(request);
+				
+				// Note that we check for "isDidAuthentication()" below to see if authentication actually happened during the call above
+				// to "authenticateFromFilter()". The return status "SUCCESS" is too general, and could mean we have a remembered authentication
+				// or an unauthenticated identity. Here we need to react on the initial authentication only.
+				if (!matchesRequest && SUCCESS.equals(getLastStatus(request)) && isDidAuthenticationAndSucceeded(request)) {
+					
+					// If we just authenticated but are on another URL than where we should take the user, we redirect the user to this original URL.
+					// It's less ideal for the SAM to do this, since there's no status code for doing authentication AND
+					// redirecting (after which JASPIC should not invoke the resource).
+					redirect(response, requestData.getFullRequestURL());
+					
+					// Don't continue the chain (this is what a SAM cannot instruct JASPIC to do).
+					return;
 				}
-				requestDAO.remove(request);
+				
+				// If there was a saved request and it matches with the current request, it means the user was originally redirected from
+				// a protected resource to authenticate and has now been redirected back to it. Since we reach this filter, it means
+				// the user is now authenticated to access this protected resource.
+				if (matchesRequest) {
+					
+					if (requestData.isRestoreRequest()) {
+						// We restore the original request here by providing a wrapped request. This will ensure the
+						// original request parameters (GET + POST) as well as the original cookies etc are available again.
+						newRequest = new HttpServletRequestDelegator(request, requestData);
+					}
+					requestDAO.remove(request);
+				}
 			}
-
+			
 			chain.doFilter(newRequest, response);
 		}
 	}
-
 }

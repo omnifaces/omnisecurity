@@ -15,11 +15,10 @@ package org.omnifaces.security.jaspic;
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
+import static org.brickred.socialauth.util.SocialAuthUtil.getRequestParametersMap;
 import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
-import static org.omnifaces.security.jaspic.Utils.redirect;
-
-import java.util.Map;
+import static org.omnifaces.util.Utils.encodeURL;
 
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
@@ -30,19 +29,13 @@ import org.brickred.socialauth.AuthProvider;
 import org.brickred.socialauth.Profile;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
-import org.brickred.socialauth.util.SocialAuthUtil;
 import org.omnifaces.security.cdi.Beans;
-import org.omnifaces.security.jaspic.request.RequestData;
-import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
-import org.omnifaces.util.Utils;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
-
-	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
 	private String providerId;
 
@@ -54,21 +47,16 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext)
 			throws AuthException {
 
+		// Check if user code has triggered the SAM to start the authentication process. If so the SAM will redirect the user to the social provider.
 		if (isLoginRequest(request, response, httpMsgContext)) {
 			return SEND_CONTINUE;
 		}
 
 		try {
+			// Check if the user has arrived back from the social provider
 			if (isCallbackRequest(request, response, httpMsgContext)) {
 
 				if (doSocialLogin(request, response, httpMsgContext)) {
-					RequestData requestData = requestDAO.get(request);
-
-					if (requestData != null) {
-						redirect(response, requestData.getFullRequestURL());
-						return SEND_CONTINUE;
-					}
-
 					return SUCCESS;
 				} else {
 					return SEND_FAILURE;
@@ -76,10 +64,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			}
 		}
 		catch (Exception e) {
-			AuthException authException = new AuthException();
-			authException.initCause(e);
-
-			throw authException;
+			throw (AuthException) new AuthException().initCause(e);
 		}
 
 		return SUCCESS;
@@ -96,9 +81,8 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	private boolean doSocialLogin(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
 		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
-
-		Map<String, String> requestParametersMap = SocialAuthUtil.getRequestParametersMap(request);
-		AuthProvider authProvider = socialAuthManager.connect(requestParametersMap);
+		
+		AuthProvider authProvider = socialAuthManager.connect(getRequestParametersMap(request));
 
 		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
 		Profile profile = authProvider.getUserProfile();
@@ -112,7 +96,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		}
 		catch (RegistrationException e) {
 			if (e.getReason() != null) {
-				response.sendRedirect("/login?failure-reason=" + Utils.encodeURL(e.getReason()));
+				response.sendRedirect("/login?failure-reason=" + encodeURL(e.getReason()));
 			}
 		}
 		return false;

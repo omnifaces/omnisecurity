@@ -89,6 +89,7 @@ public class HttpMsgContext {
      */
     public void registerWithContainer(String username, List<String> roles, boolean registerSession) {
         Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
+        Jaspic.setDidAuthentication((HttpServletRequest) messageInfo.getRequestMessage());
         if (registerSession) {
             Jaspic.setRegisterSession(messageInfo, username, roles);
         }

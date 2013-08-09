@@ -67,9 +67,7 @@ public class AuthResult {
 	
 	private void maybeThrow() throws AuthException {
 		if (exception != null) {
-			AuthException authException = new AuthException();
-			authException.initCause(exception);
-			throw authException;
+			throw (AuthException) new AuthException().initCause(exception);
 		}
 	}
 	
