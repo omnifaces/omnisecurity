@@ -1,7 +1,0 @@
-
-syntax: regexp
-^build$
-^bin/.*$
-^target/.*$
-syntax: regexp
-^dist$
