@@ -30,11 +30,13 @@ import org.brickred.socialauth.Profile;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.omnifaces.security.cdi.Beans;
+import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
+	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
 
 	private String providerId;
@@ -55,12 +57,16 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		try {
 			// Check if the user has arrived back from the social provider
 			if (isCallbackRequest(request, response, httpMsgContext)) {
-
-				if (doSocialLogin(request, response, httpMsgContext)) {
-					return SUCCESS;
-				} else {
-					return SEND_FAILURE;
-				}
+				// Contact the social provider directly (don't involve the user) with the tokens from the request
+				// in order to get the users identity.
+				getUserProfileFromSocialProvider(request);
+			}
+			
+			// See if the social profile is available. This can be either directly after the arrival from the social provider
+			// or after posting back a page where the SAM asked for more information.
+			if (isProfileAvailable(request)) {
+				return doSocialLogin(request, response, httpMsgContext);
+				
 			}
 		}
 		catch (Exception e) {
@@ -69,39 +75,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 		return SUCCESS;
 	}
-
-	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		if (request.getRequestURI().equals("/login") && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
-			return true;
-		}
-
-		return false;
-	}
-
-	private boolean doSocialLogin(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
-		
-		AuthProvider authProvider = socialAuthManager.connect(getRequestParametersMap(request));
-
-		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
-		Profile profile = authProvider.getUserProfile();
-
-		try {
-			if (authenticator.authenticateOrRegister(profile)) {
-				httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
-
-				return true;
-			}
-		}
-		catch (RegistrationException e) {
-			if (e.getReason() != null) {
-				response.sendRedirect("/login?failure-reason=" + encodeURL(e.getReason()));
-			}
-		}
-		return false;
-	}
-
+	
 	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 
 		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
@@ -122,6 +96,8 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 				socialAuthManager = new SocialAuthManager();
 				socialAuthManager.setSocialAuthConfig(config);
 
+				// Null the profile for the case we still have one from a previous session
+				request.getSession().setAttribute(SOCIAL_PROFILE, null);
 				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, socialAuthManager);
 
 				response.sendRedirect(socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + "/login"));
@@ -130,14 +106,63 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 			}
 			catch (Exception e) {
-				AuthException authException = new AuthException();
-				authException.initCause(e);
-
-				throw authException;
+				throw (AuthException) new AuthException().initCause(e);
 			}
-
 		}
+		
 		return false;
+	}
+
+	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
+		if (request.getRequestURI().equals("/login") && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
+			return true;
+		}
+
+		return false;
+	}
+	
+	private void getUserProfileFromSocialProvider(HttpServletRequest request) throws Exception {
+		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
+		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
+		
+		AuthProvider authProvider = socialAuthManager.connect(getRequestParametersMap(request));
+
+		Profile profile = authProvider.getUserProfile();
+		request.getSession().setAttribute(SOCIAL_PROFILE, profile);
+	}
+	
+	private boolean isProfileAvailable(HttpServletRequest request) {
+		return request.getSession().getAttribute(SOCIAL_PROFILE) != null;
+	}
+
+	private AuthStatus doSocialLogin(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
+		Profile profile = (Profile) request.getSession().getAttribute(SOCIAL_PROFILE);
+
+		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
+		try {
+			if (authenticator.authenticateOrRegister(profile)) {
+				httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
+
+				return SUCCESS;
+			}
+		}
+		catch (ProfileIncompleteException e) {
+			if (e.getReason() != null && !request.getServletPath().startsWith("/register-email")) {
+				response.sendRedirect("/register-email");
+				
+				return SEND_CONTINUE;
+			}
+			
+			return SUCCESS; // DO NOTHING, slightly different from SUCCESS	
+		}
+		catch (RegistrationException e) {
+			if (e.getReason() != null) {
+				request.getSession().setAttribute(SOCIAL_PROFILE, null);
+				response.sendRedirect("/login?failure-reason=" + encodeURL(e.getReason()));
+			}
+		}
+		
+		return SEND_FAILURE;
 	}
 
 }

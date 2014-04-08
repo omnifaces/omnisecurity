@@ -37,6 +37,16 @@ public final class Utils {
 		return true;
 	}
 	
+	/**
+	 * Returns true if the given string is null or is empty.
+	 *
+	 * @param string The string to be checked on emptiness.
+	 * @return True if the given string is null or is empty.
+	 */
+	public static boolean isEmpty(String string) {
+		return string == null || string.isEmpty();
+	}
+	
 	public static String getBaseURL(HttpServletRequest request) {
 		String url = request.getRequestURL().toString();
 		return url.substring(0, url.length() - request.getRequestURI().length()) + request.getContextPath();

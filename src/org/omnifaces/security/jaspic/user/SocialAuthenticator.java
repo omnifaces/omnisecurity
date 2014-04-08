@@ -14,9 +14,10 @@ package org.omnifaces.security.jaspic.user;
 
 import org.brickred.socialauth.Profile;
 import org.omnifaces.security.jaspic.RegistrationException;
+import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
 
 public interface SocialAuthenticator extends Authenticator {
 
-	boolean authenticateOrRegister(Profile externalProfile) throws RegistrationException;
+	boolean authenticateOrRegister(Profile externalProfile) throws RegistrationException, ProfileIncompleteException;
 
 }
