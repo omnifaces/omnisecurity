@@ -1,1 +1,1 @@
-[OmniSecurity homepage is available at omnifaces.github.io/omnisecurity](http://omnifaces.github.io/omnisecurity/).
+[OmniSecurity homepage is available at **omnisecurity.omnifaces.org**](http://omnisecurity.omnifaces.org).
