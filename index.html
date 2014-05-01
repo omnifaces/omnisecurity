@@ -4,7 +4,7 @@
   <head>
     <meta charset='utf-8' />
     <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="OmniSecurity : Easy of use abstractions on top of Java EE security APIs like JASPIC and JACC" />
+    <meta name="description" content="OmniSecurity : Bringing JASPIC and JACC closer to the world" />
 
     <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
@@ -19,7 +19,7 @@
           <a id="forkme_banner" href="https://github.com/omnifaces/omnisecurity">View on GitHub</a>
 
           <h1 id="project_title">OmniSecurity</h1>
-          <h2 id="project_tagline">Easy of use abstractions on top of Java EE security APIs like JASPIC and JACC</h2>
+          <h2 id="project_tagline">Bringing JASPIC and JACC closer to the world</h2>
 
             <section id="downloads">
               <a class="zip_download_link" href="https://github.com/omnifaces/omnisecurity/zipball/master">Download this project as a .zip file</a>
@@ -31,8 +31,35 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <h1>
-<a name="tbd-" class="anchor" href="#tbd-"><span class="octicon octicon-link"></span></a>TBD :)</h1>
+        <h2>
+<a name="what-is-omnisecurity" class="anchor" href="#what-is-omnisecurity"><span class="octicon octicon-link"></span></a>What is OmniSecurity?</h2>
+
+<p>OmniSecurity provides a basic security (login) facility for simple, self-contained web applications with easy of use abstractions on top of Java EE security APIs like JASPIC and JACC.</p>
+
+<p>The focus is on integrating with the Java EE security model and to explore a mechanism that more naturally integrates with JSF than the existing natively supported FORM based authentication options in Java EE's Servlet API.</p>
+
+<p>This project takes advantage of the JASPIC/JASPI/JSR 196 SPI and aims at building a portable SAM (Server Authentication Module/Server Auth Module) that delegates the actual authentication (user name and role retrieval) to user code. It's an implementation of the idea proposed at <a href="http://java.net/jira/browse/JAVAEE_SPEC-9">JAVAEE_SPEC-9</a>.</p>
+
+<p>OmniSecurity is a sub-project of <a href="http://omnifaces.org">OmniFaces</a>.<br>
+It targets Java EE 6 exclusively and is build with JDK 7.<br>
+Note that this is still an <em>alpha</em> quality project at the moment.</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Maven coordinates:</p>
+
+<div class="highlight highlight-XML"><pre><span class="nt">&lt;dependency&gt;</span>
+    <span class="nt">&lt;groupId&gt;</span>org.omnifaces<span class="nt">&lt;/groupId&gt;</span>
+    <span class="nt">&lt;artifactId&gt;</span>omnifaces-security<span class="nt">&lt;/artifactId&gt;</span>
+    <span class="nt">&lt;version&gt;</span>0.1<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</pre></div>
+
+<h3>
+<a name="demo" class="anchor" href="#demo"><span class="octicon octicon-link"></span></a>Demo</h3>
+
+<p>The auth module is demonstrated in a <a href="https://github.com/javaeekickoff/java-ee-kickoff-app">Java EE 6 kickoff app</a>, which also has a <a href="https://javaee6-kickoffapp.rhcloud.com">live demo</a>.</p>
       </section>
     </div>
 
