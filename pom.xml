@@ -6,10 +6,13 @@
 
 	<groupId>org.omnifaces</groupId>
 	<artifactId>omnifaces-security</artifactId>
+	<version>0.5-SNAPSHOT</version>
+	
 	<packaging>jar</packaging>
+	
 	<name>OmniSecurity</name>
-	<version>0.4-SNAPSHOT</version>
 	<description>Java EE, JSF and JASPIC integrated security</description>
+
 	<url>http://code.google.com/p/omnisecurity</url>
 	<organization>
 		<name>OmniFaces</name>
@@ -73,9 +76,7 @@
 		</dependency>
 	</dependencies>
 
-	<!-- Build part provided by mellowaredev (http://code.google.com/u/mellowaredev) -->
 	<build>
-		<sourceDirectory>${basedir}/src</sourceDirectory>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -86,80 +87,7 @@
 					<compilerVersion>${jdk.version}</compilerVersion>
 				</configuration>
 			</plugin>
-
-			<plugin>
-				<artifactId>maven-source-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 			
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-resources-plugin</artifactId>
-				<version>2.5</version>
-				<executions>
-					<execution>
-						<id>copy-resources</id>
-						<!-- here the phase you need -->
-						<phase>validate</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${basedir}/target/classes/META-INF</outputDirectory>
-							<resources>          
-								<resource>
-									<directory>${basedir}/src/META-INF</directory>
-								</resource>
-							</resources>              
-						</configuration>            
-					</execution>
-				</executions>
-			</plugin>
-			
-			<plugin>
-				<artifactId>maven-release-plugin</artifactId>
-				<version>2.2.2</version>
-				<configuration>
-					<preparationGoals>clean verify javadoc:jar source:jar</preparationGoals>
-					<completionGoals>deploy</completionGoals>
-				</configuration>
-			</plugin>
-			
-			<plugin>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<archive>
-						<manifest>
-							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-						</manifest>
-						<manifestEntries>
-							<URL>${project.url}</URL>
-							<Extension-Name>${project.artifactId}</Extension-Name>
-						</manifestEntries>
-					</archive>
-				</configuration>
-			</plugin>
-			
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.9</version>
-				<configuration>
-					<addGroupIdToProjectName>true</addGroupIdToProjectName>
-					<downloadSources>true</downloadSources>
-					<downloadJavadocs>true</downloadJavadocs>
-					<ajdtVersion>none</ajdtVersion>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 
