@@ -73,6 +73,12 @@
 			<groupId>org.brickred</groupId>
 			<artifactId>socialauth</artifactId>
 			<version>4.6</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
