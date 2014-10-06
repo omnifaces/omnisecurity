@@ -13,7 +13,9 @@
 package org.omnifaces.security.jaspic.config;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.security.auth.message.module.ServerAuthModule;
@@ -69,6 +71,7 @@ public class AuthStacksBuilder {
 		public class ModuleBuilder {
 			
 			private Module module = new Module();
+			private Map<String, String> options = new HashMap<String, String>();
 			
 			public ModuleBuilder serverAuthModule(ServerAuthModule serverAuthModule) {
 				module.setServerAuthModule(serverAuthModule);
@@ -80,11 +83,21 @@ public class AuthStacksBuilder {
 				return this;
 			}
 			
+			public ModuleBuilder options(Map<String, String> options) {
+				options.putAll(options);
+				return this;
+			}
+			
+			public ModuleBuilder option(String key, String value) {
+				options.put(key, value);
+				return this;
+			}
+			
 			public StackBuilder add() {
+				module.setOptions(options);
 				modules.add(module);
 				return StackBuilder.this;
 			}
 		}
 	}
-
 }

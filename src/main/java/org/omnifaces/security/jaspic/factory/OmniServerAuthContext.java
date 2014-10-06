@@ -28,7 +28,6 @@ import static org.omnifaces.security.jaspic.Utils.getBaseURL;
 import static org.omnifaces.security.jaspic.Utils.redirect;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.security.auth.Subject;
@@ -84,7 +83,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 		for (List<Module> modules : stacks.getModuleStacks().values()) {
 			for (Module module : modules) {
-				module.getServerAuthModule().initialize(null, null, handler, Collections.<String, String> emptyMap());
+				module.getServerAuthModule().initialize(null, null, handler, module.getOptions());
 			}
 		}
 	}

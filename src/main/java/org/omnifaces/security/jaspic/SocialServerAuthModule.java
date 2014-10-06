@@ -37,6 +37,11 @@ import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";
+	
+	public static final String CALLBACK_URL 		  = "callbackUrl";
+	public static final String PROFILE_INCOMPLETE_URL = "profileIncompleteUrl";
+	public static final String REGISTRATION_ERROR_URL =	"registrationErrorUrl";
+	
 	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
 
 	private String providerId;
@@ -100,7 +105,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 				request.getSession().setAttribute(SOCIAL_PROFILE, null);
 				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, socialAuthManager);
 
-				response.sendRedirect(socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + "/login"));
+				response.sendRedirect(socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)));
 
 				return true;
 
@@ -114,7 +119,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		if (request.getRequestURI().equals("/login") && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
+		if (request.getRequestURI().equals(httpMsgContext.getModuleOption(CALLBACK_URL)) && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
 			return true;
 		}
 
@@ -147,8 +152,8 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			}
 		}
 		catch (ProfileIncompleteException e) {
-			if (e.getReason() != null && !request.getServletPath().startsWith("/register-email")) {
-				response.sendRedirect("/register-email");
+			if (e.getReason() != null && !request.getServletPath().startsWith(httpMsgContext.getModuleOption(PROFILE_INCOMPLETE_URL))) {
+				response.sendRedirect(httpMsgContext.getModuleOption(PROFILE_INCOMPLETE_URL));
 				
 				return SEND_CONTINUE;
 			}
@@ -158,7 +163,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		catch (RegistrationException e) {
 			if (e.getReason() != null) {
 				request.getSession().setAttribute(SOCIAL_PROFILE, null);
-				response.sendRedirect("/login?failure-reason=" + encodeURL(e.getReason()));
+				response.sendRedirect(httpMsgContext.getModuleOption(REGISTRATION_ERROR_URL) + "?failure-reason=" + encodeURL(e.getReason()));
 			}
 		}
 		

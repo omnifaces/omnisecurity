@@ -36,12 +36,16 @@ import javax.servlet.http.HttpServletResponse;
 public abstract class HttpServerAuthModule implements ServerAuthModule {
 
 	private CallbackHandler handler;
+	private Map<String, String> options;
 	private final Class<?>[] supportedMessageTypes = new Class[] { HttpServletRequest.class, HttpServletResponse.class };
 
+	
 	@Override
+	@SuppressWarnings("unchecked")
 	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler,
 			@SuppressWarnings("rawtypes") Map options) throws AuthException {
 		this.handler = handler;
+		this.options = options;
 	}
 
 	/**
@@ -55,7 +59,7 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-		HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, clientSubject);
+		HttpMsgContext msgContext = new HttpMsgContext(handler, options, messageInfo, clientSubject);
 		return validateHttpRequest(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
 
@@ -74,7 +78,7 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	 */
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-	    HttpMsgContext msgContext = new HttpMsgContext(handler, messageInfo, subject);
+	    HttpMsgContext msgContext = new HttpMsgContext(handler, options, messageInfo, subject);
 		cleanHttpSubject(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
 

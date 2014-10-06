@@ -12,7 +12,11 @@
  */
 package org.omnifaces.security.jaspic;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
 import java.util.List;
+import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -32,12 +36,18 @@ import javax.servlet.http.HttpServletResponse;
 public class HttpMsgContext {
 
     private CallbackHandler handler;
-    private MessageInfo messageInfo; 
+    private Map<String, String> moduleOptions;
+	private MessageInfo messageInfo; 
     private Subject clientSubject;
     private AuthParameters authParameters;
     
-    public HttpMsgContext(CallbackHandler handler, MessageInfo messageInfo, Subject clientSubject) {
+    public HttpMsgContext(CallbackHandler handler, Map<String, String> moduleOptions, MessageInfo messageInfo, Subject clientSubject) {
         this.handler = handler;
+        if (moduleOptions != null) {
+        	this.moduleOptions = unmodifiableMap(moduleOptions);
+        } else {
+        	this.moduleOptions = emptyMap();
+        }
         this.messageInfo = messageInfo;
         this.clientSubject = clientSubject;
         this.authParameters = Jaspic.getAuthParameters(getRequest());       
@@ -139,6 +149,24 @@ public class HttpMsgContext {
      */
     public CallbackHandler getHandler() {
         return handler;
+    }
+    
+    /**
+     * Returns the module options that were set on the auth module to which this context belongs.
+     * 
+     * @return the module options that were set on the auth module to which this context belongs.
+     */
+    public Map<String, String> getModuleOptions() {
+		return moduleOptions;
+	}
+    
+    /**
+     * Returns the named module option that was set on the auth module to which this context belongs.
+     * 
+     * @return the named module option that was set on the auth module to which this context belongs, or null if no option with that name was set.
+     */
+    public String getModuleOption(String key) {
+    	return moduleOptions.get(key);
     }
 
     /**

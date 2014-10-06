@@ -12,12 +12,23 @@
  */
 package org.omnifaces.security.jaspic.config;
 
+import java.util.Map;
+
 import javax.security.auth.message.module.ServerAuthModule;
 
 public class Module {
 
 	private ServerAuthModule serverAuthModule;
 	private ControlFlag controlFlag;
+	private Map<String, String> options;
+	
+	public Map<String, String> getOptions() {
+		return options;
+	}
+
+	public void setOptions(Map<String, String> options) {
+		this.options = options;
+	}
 
 	public ServerAuthModule getServerAuthModule() {
 		return serverAuthModule;

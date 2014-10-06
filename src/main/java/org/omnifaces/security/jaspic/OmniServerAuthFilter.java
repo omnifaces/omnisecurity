@@ -43,7 +43,7 @@ import org.omnifaces.security.jaspic.request.RequestDataDAO;
  * this is for most servers not the case.
  * <p>
  * Additionally, in this Filter we can wrap the request if needed. This should be possible in <code>validateHttpRequest</code> as well, but
- * in practice no known JASPIC implementation actually supports this.
+ * historically JASPIC implementations never supported this. As of 2014, WildFly 8 and GlassFish 4 support it.
  *
  */
 public class OmniServerAuthFilter extends HttpFilter {
