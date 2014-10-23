@@ -38,7 +38,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<jdk.version>1.7</jdk.version>
-		<jee.version>6.0</jee.version>
+		<javaee.version>6.0</javaee.version>
 	</properties>
 
 	<developers>
@@ -59,14 +59,8 @@
 		<dependency>
 			<groupId>javax</groupId>
 			<artifactId>javaee-api</artifactId>
-			<version>${jee.version}</version>
+			<version>${javaee.version}</version>
 			<scope>provided</scope>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.omnifaces</groupId>
-			<artifactId>omnifaces</artifactId>
-			<version>1.4</version>
 		</dependency>
 		
 		<dependency>

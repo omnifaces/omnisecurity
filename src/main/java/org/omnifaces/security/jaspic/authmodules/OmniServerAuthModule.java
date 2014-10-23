@@ -10,17 +10,19 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.authmodules;
 
 import static java.lang.Boolean.TRUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.cdi.Beans.getReferenceOrNull;
-import static org.omnifaces.security.jaspic.Jaspic.isRefresh;
-import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
-import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
-import static org.omnifaces.security.jaspic.OmniServerAuthModule.LoginResult.NO_LOGIN;
 import static org.omnifaces.security.jaspic.Utils.notNull;
+import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
+import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
+import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.NO_LOGIN;
+import static org.omnifaces.security.jaspic.core.Jaspic.isRefresh;
+import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
 
 import javax.enterprise.inject.spi.BeanManager;
 import javax.security.auth.message.AuthStatus;
@@ -29,6 +31,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.omnifaces.security.cdi.Beans;
+import org.omnifaces.security.jaspic.core.AuthParameters;
+import org.omnifaces.security.jaspic.core.HttpMsgContext;
+import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
+import org.omnifaces.security.jaspic.core.Jaspic;
+import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
 import org.omnifaces.security.jaspic.user.Authenticator;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
@@ -49,6 +56,7 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  * {@link Jaspic#authenticate()} as a convenience shortcut for that.
  *
  */
+@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
 public class OmniServerAuthModule extends HttpServerAuthModule {
 	
 	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();

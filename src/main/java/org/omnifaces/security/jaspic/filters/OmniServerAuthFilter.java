@@ -10,14 +10,14 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.filters;
 
 import static javax.security.auth.message.AuthStatus.SUCCESS;
-import static org.omnifaces.security.jaspic.Jaspic.authenticateFromFilter;
-import static org.omnifaces.security.jaspic.Jaspic.getLastStatus;
-import static org.omnifaces.security.jaspic.Jaspic.isDidAuthenticationAndSucceeded;
+import static org.omnifaces.security.jaspic.Utils.isOneOf;
 import static org.omnifaces.security.jaspic.Utils.redirect;
-import static org.omnifaces.util.Utils.isOneOf;
+import static org.omnifaces.security.jaspic.core.Jaspic.authenticateFromFilter;
+import static org.omnifaces.security.jaspic.core.Jaspic.getLastStatus;
+import static org.omnifaces.security.jaspic.core.Jaspic.isDidAuthenticationAndSucceeded;
 
 import java.io.IOException;
 
@@ -28,7 +28,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.omnifaces.filter.HttpFilter;
 import org.omnifaces.security.jaspic.request.HttpServletRequestDelegator;
 import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;

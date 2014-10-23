@@ -10,15 +10,17 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.authmodules;
 
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.brickred.socialauth.util.SocialAuthUtil.getRequestParametersMap;
-import static org.omnifaces.security.jaspic.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
-import static org.omnifaces.util.Utils.encodeURL;
+import static org.omnifaces.security.jaspic.core.Jaspic.isAuthenticationRequest;
+import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
+import static org.omnifaces.security.jaspic.Utils.encodeURL;
 
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
@@ -30,10 +32,15 @@ import org.brickred.socialauth.Profile;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.omnifaces.security.cdi.Beans;
+import org.omnifaces.security.jaspic.core.HttpMsgContext;
+import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
+import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
+import org.omnifaces.security.jaspic.exceptions.RegistrationException;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
+@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";

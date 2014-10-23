@@ -10,15 +10,16 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.core;
 
 import static java.lang.Boolean.TRUE;
-import static org.omnifaces.util.Utils.isEmpty;
-import static org.omnifaces.util.Utils.isOneOf;
+import static org.omnifaces.security.jaspic.Utils.isEmpty;
+import static org.omnifaces.security.jaspic.Utils.isOneOf;
 
 import java.io.IOException;
 import java.util.List;
 
+import javax.faces.context.FacesContext;
 import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -31,8 +32,6 @@ import javax.security.auth.message.module.ServerAuthModule;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.omnifaces.util.Faces;
 
 /**
  * A set of utility methods for using the JASPIC API, specially in combination with
@@ -65,18 +64,6 @@ public final class Jaspic {
 	private static final String REGISTER_SESSION = "javax.servlet.http.registerSession";
 
 	private Jaspic() {}
-		
-	public static boolean authenticate() {
-		return authenticate(Faces.getRequest(), Faces.getResponse(), null);
-	}
-	
-	public static boolean authenticate(AuthParameters authParameters) {
-		return authenticate(Faces.getRequest(), Faces.getResponse(), authParameters);
-	}
-	
-	public static boolean refreshAuthentication(AuthParameters authParameters) {
-		return refreshAuthentication(Faces.getRequest(), Faces.getResponse(), authParameters);
-	}
 	
 	public static boolean authenticate(HttpServletRequest request, HttpServletResponse response, AuthParameters authParameters) {
 		try {
@@ -128,10 +115,6 @@ public final class Jaspic {
 		}
 		
 		return authParameters;
-	}
-	
-	public static void logout() {
-		logout(Faces.getRequest(), Faces.getResponse());
 	}
 	
 	public static void logout(HttpServletRequest request, HttpServletResponse response) {
@@ -208,6 +191,8 @@ public final class Jaspic {
 	public static boolean isRefresh(HttpServletRequest request) {
 		return TRUE.equals(request.getAttribute(IS_REFRESH));
 	}
+	
+	
 	
 	/**
 	 * Returns true if authorization was explicitly called for via this class (e.g. by calling {@link Jaspic#authenticate()},
@@ -294,5 +279,34 @@ public final class Jaspic {
 	public static boolean isDidAuthenticationAndSucceeded(HttpServletRequest request) {
 		return TRUE.equals(request.getAttribute(DID_AUTHENTICATION)) && request.getUserPrincipal() != null;
 	}
+	
+	// Couple of convenience methods for usage in JSF - may remove these as its too tightly coupled
+	
+	public static boolean authenticate() {
+		return authenticate(getRequest(), getResponse(), null);
+	}
+	
+	public static boolean authenticate(AuthParameters authParameters) {
+		return authenticate(getRequest(), getResponse(), authParameters);
+	}
+	
+	public static boolean refreshAuthentication(AuthParameters authParameters) {
+		return refreshAuthentication(getRequest(), getResponse(), authParameters);
+	}
+	
+	public static void logout() {
+		logout(getRequest(), getResponse());
+	}
+		
+	// End Couple of convenience methods for usage in JSF - may remove these as its too tightly coupled
+	
+	public static HttpServletRequest getRequest() {
+		return (HttpServletRequest) FacesContext.getCurrentInstance().getExternalContext().getRequest();
+	}
+	
+	public static HttpServletResponse getResponse() {
+		return (HttpServletResponse) FacesContext.getCurrentInstance().getExternalContext().getResponse();
+	}
+	
 	
 }

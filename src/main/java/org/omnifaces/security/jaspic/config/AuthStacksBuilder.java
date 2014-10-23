@@ -12,6 +12,10 @@
  */
 package org.omnifaces.security.jaspic.config;
 
+import static java.util.Arrays.asList;
+import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +23,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import javax.security.auth.message.module.ServerAuthModule;
+
+import org.omnifaces.security.jaspic.core.SamServices;
+import org.omnifaces.security.jaspic.core.ServiceType;
+import org.omnifaces.security.jaspic.wrappers.AutoRegisterSessionWrapper;
+import org.omnifaces.security.jaspic.wrappers.SaveAndRedirectWrapper;
 
 public class AuthStacksBuilder {
 	
@@ -74,6 +83,21 @@ public class AuthStacksBuilder {
 			private Map<String, String> options = new HashMap<String, String>();
 			
 			public ModuleBuilder serverAuthModule(ServerAuthModule serverAuthModule) {
+				
+				ServerAuthModule wrappedServerAuthModule = serverAuthModule;
+				
+				if (serverAuthModule.getClass().isAnnotationPresent(SamServices.class)) {
+					List<ServiceType> types = asList(serverAuthModule.getClass().getAnnotation(SamServices.class).value());
+					
+					if (types.contains(SAVE_AND_REDIRECT)) {
+						wrappedServerAuthModule = new SaveAndRedirectWrapper(wrappedServerAuthModule);
+					}
+					
+					if (types.contains(AUTO_REGISTER_SESSION)) {
+						wrappedServerAuthModule = new AutoRegisterSessionWrapper(wrappedServerAuthModule);
+					}
+				}
+				
 				module.setServerAuthModule(serverAuthModule);
 				return this;
 			}

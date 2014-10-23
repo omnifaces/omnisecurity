@@ -12,7 +12,12 @@
  */
 package org.omnifaces.security.jaspic;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Collection;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -24,6 +29,8 @@ import javax.servlet.http.HttpServletResponse;
  *
  */
 public final class Utils {
+	
+	private static final String ERROR_UNSUPPORTED_ENCODING = "UTF-8 is apparently not supported on this platform.";
     
     private Utils() {}
 	
@@ -47,6 +54,44 @@ public final class Utils {
 		return string == null || string.isEmpty();
 	}
 	
+	/**
+	 * Returns <code>true</code> if the given array is null or is empty.
+	 *
+	 * @param array The array to be checked on emptiness.
+	 * @return <code>true</code> if the given array is null or is empty.
+	 */
+	public static boolean isEmpty(Object[] array) {
+		return array == null || array.length == 0;
+	}
+	
+	/**
+	 * Returns <code>true</code> if the given collection is null or is empty.
+	 *
+	 * @param collection The collection to be checked on emptiness.
+	 * @return <code>true</code> if the given collection is null or is empty.
+	 */
+	public static boolean isEmpty(Collection<?> collection) {
+		return collection == null || collection.isEmpty();
+	}
+	
+	/**
+	 * Returns <code>true</code> if the given object equals one of the given objects.
+	 * @param <T> The generic object type.
+	 * @param object The object to be checked if it equals one of the given objects.
+	 * @param objects The argument list of objects to be tested for equality.
+	 * @return <code>true</code> if the given object equals one of the given objects.
+	 */
+	@SafeVarargs
+	public static <T> boolean isOneOf(T object, T... objects) {
+		for (Object other : objects) {
+			if (object == null ? other == null : object.equals(other)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+	
 	public static String getBaseURL(HttpServletRequest request) {
 		String url = request.getRequestURL().toString();
 		return url.substring(0, url.length() - request.getRequestURI().length()) + request.getContextPath();
@@ -57,6 +102,19 @@ public final class Utils {
 			response.sendRedirect(location);
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
+		}
+	}
+	
+	public static String encodeURL(String string) {
+		if (string == null) {
+			return null;
+		}
+
+		try {
+			return URLEncoder.encode(string, UTF_8.name());
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException(ERROR_UNSUPPORTED_ENCODING, e);
 		}
 	}
 

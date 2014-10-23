@@ -15,7 +15,7 @@ package org.omnifaces.security.jaspic.request;
 import static java.util.Arrays.copyOf;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.list;
-import static org.omnifaces.util.Utils.isEmpty;
+import static org.omnifaces.security.jaspic.Utils.isEmpty;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -17,7 +17,7 @@ import java.util.Properties;
 import javax.enterprise.context.ApplicationScoped;
 
 import org.brickred.socialauth.SocialAuthManager;
-import org.omnifaces.security.jaspic.SocialServerAuthModule;
+import org.omnifaces.security.jaspic.authmodules.SocialServerAuthModule;
 
 /**
  * A provider for properties for the {@link SocialServerAuthModule}'s internal {@link SocialAuthManager} configuration.

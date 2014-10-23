@@ -12,7 +12,7 @@
  */
 package org.omnifaces.security.jaspic.request;
 
-import static org.omnifaces.util.Utils.isEmpty;
+import static org.omnifaces.security.jaspic.Utils.isEmpty;
 
 import java.util.List;
 import java.util.Locale;

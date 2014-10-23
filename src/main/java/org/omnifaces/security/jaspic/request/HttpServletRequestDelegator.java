@@ -16,7 +16,6 @@ import static java.lang.Integer.parseInt;
 import static java.util.Collections.enumeration;
 import static java.util.Locale.US;
 import static java.util.TimeZone.getTimeZone;
-import static org.omnifaces.util.Utils.isEmpty;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -31,6 +30,8 @@ import java.util.TimeZone;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+
+import org.omnifaces.security.jaspic.Utils;
 
 /**
  * This class wraps a given HttpServletRequest instance and delegates "most" methods that request
@@ -153,7 +154,7 @@ public class HttpServletRequestDelegator extends HttpServletRequestWrapper {
 	public String getParameter(String name) {
 		
 		String[] values = requestData.getParameters().get(name);
-		if (isEmpty(values)) {
+		if (Utils.isEmpty(values)) {
 			return null;
 		}
 		

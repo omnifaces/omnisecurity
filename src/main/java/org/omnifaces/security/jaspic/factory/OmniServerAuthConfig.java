@@ -45,15 +45,8 @@ public class OmniServerAuthConfig implements ServerAuthConfig {
 		this.stacks = stacks;
 	}
 
-	/**
-	 * WebLogic 12c, JBoss EAP 6 and GlassFish 3.1.2.2 call this only once per request, Geronimo V3 calls this before sam.validateRequest and again
-	 * before sam.secureRequest in the same request.
-	 *
-	 */
 	@Override
-	public ServerAuthContext getAuthContext(String authContextID, Subject serviceSubject, @SuppressWarnings("rawtypes") Map properties)
-			throws AuthException {
-
+	public ServerAuthContext getAuthContext(String authContextID, Subject serviceSubject, @SuppressWarnings("rawtypes") Map properties)	throws AuthException {
 		return new OmniServerAuthContext(handler, stacks);
 	}
 

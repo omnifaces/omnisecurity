@@ -10,7 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.core;
 
 import static javax.security.auth.message.AuthStatus.SEND_SUCCESS;
 
@@ -38,12 +38,10 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	private CallbackHandler handler;
 	private Map<String, String> options;
 	private final Class<?>[] supportedMessageTypes = new Class[] { HttpServletRequest.class, HttpServletResponse.class };
-
 	
 	@Override
 	@SuppressWarnings("unchecked")
-	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler,
-			@SuppressWarnings("rawtypes") Map options) throws AuthException {
+	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler, @SuppressWarnings("rawtypes") Map options) throws AuthException {
 		this.handler = handler;
 		this.options = options;
 	}
@@ -63,10 +61,6 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 		return validateHttpRequest(msgContext.getRequest(), msgContext.getResponse(), msgContext);
 	}
 
-	/**
-	 * WebLogic 12c and JBoss EAP 6 (optionally) calls this before Servlet is called, Geronimo v3 and GlassFish 3.1.2.2 after. WebLogic
-	 * (seemingly) only continues if SEND_SUCCESS is returned, Geronimo completely ignores return value.
-	 */
 	@Override
 	public AuthStatus secureResponse(MessageInfo messageInfo, Subject serviceSubject) throws AuthException {
 		return SEND_SUCCESS;

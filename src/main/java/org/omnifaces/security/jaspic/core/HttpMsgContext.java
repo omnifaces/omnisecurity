@@ -10,7 +10,7 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.omnifaces.security.jaspic;
+package org.omnifaces.security.jaspic.core;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
@@ -64,6 +64,31 @@ public class HttpMsgContext {
         return Jaspic.isProtectedResource(messageInfo);
     }
     
+    public boolean isAnyExplicitAuthCall() {
+    	return Jaspic.isExplicitAuthCall(getRequest());
+    }
+    
+    public boolean isAuthenticationRequest() {
+    	return Jaspic.isAuthenticationRequest(getRequest());
+    }
+    
+    /**
+     * Asks the container to register the given username and roles in order to make
+     * them available to the application for use with {@link HttpServletRequest#isUserInRole(String)} etc.
+     *
+     * <p>
+     * Note that after this call returned, the authenticated identity will not be immediately active. This
+     * will only take place (should not errors occur) after the {@link ServerAuthContext} or {@link ServerAuthModule}
+     * in which this call takes place return control back to the runtime.
+     * 
+     * @param username the user name that will become the caller principal
+     * @param roles the roles associated with the caller principal
+     *
+     */
+    public void notifyContainerAboutLogin(String username, List<String> roles) {
+    	Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
+    }
+    
     /**
      * Asks the container to register the given username and roles in order to make
      * them available to the application for use with {@link HttpServletRequest#isUserInRole(String)} etc.
@@ -98,8 +123,13 @@ public class HttpMsgContext {
      * @param registerSession if true asks the container to register an authentication setting, if false does not ask this.
      */
     public void registerWithContainer(String username, List<String> roles, boolean registerSession) {
-        Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
+    	
+    	// Basic registration of the username and roles with the container
+    	notifyContainerAboutLogin(username, roles);
+    	
+    	// Explicitly set a flag that we did authentication, so code can check that this happened
         Jaspic.setDidAuthentication((HttpServletRequest) messageInfo.getRequestMessage());
+        
         if (registerSession) {
             Jaspic.setRegisterSession(messageInfo, username, roles);
         }
