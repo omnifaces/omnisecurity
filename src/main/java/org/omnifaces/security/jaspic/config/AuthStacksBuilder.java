@@ -98,7 +98,7 @@ public class AuthStacksBuilder {
 					}
 				}
 				
-				module.setServerAuthModule(serverAuthModule);
+				module.setServerAuthModule(wrappedServerAuthModule);
 				return this;
 			}
 			
