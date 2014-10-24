@@ -66,11 +66,11 @@ public class AutoRegisterSessionWrapper extends ServerAuthModuleWrapper {
         //
         // With JASPIC 1.1, the container partially takes care of this detail if so requested.
         if (!msgContext.isAuthenticationRequest() && canReAuthenticate(msgContext)) {
-            return SUCCESS;
+            return null;
         }
 		
         AuthStatus authstatus = super.validateRequest(messageInfo, clientSubject, serviceSubject);
-        if (authstatus == AuthStatus.SUCCESS) {
+        if (authstatus == SUCCESS) {
         	saveAuthentication(msgContext.getRequest());
         }
         

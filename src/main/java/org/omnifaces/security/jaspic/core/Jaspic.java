@@ -13,6 +13,7 @@
 package org.omnifaces.security.jaspic.core;
 
 import static java.lang.Boolean.TRUE;
+import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
 import static org.omnifaces.security.jaspic.Utils.isOneOf;
 
@@ -140,7 +141,15 @@ public final class Jaspic {
 		AuthResult authResult = new AuthResult();
 		
 		try {
-			authResult.setAuthStatus(serverAuthModule.validateRequest(messageInfo, clientSubject, serviceSubject));
+			AuthStatus status = serverAuthModule.validateRequest(messageInfo, clientSubject, serviceSubject);
+			
+			// TODO: not 100% sure about this; need mechanism for wrappers to abort the chain and signal to "do nothing"
+			// TODO: use handler for "do nothing here"?
+			if (status == null) {
+				status = SUCCESS; 
+			}
+			
+			authResult.setAuthStatus(status);
 		} catch (Exception exception) {
 			authResult.setException(exception);
 		}

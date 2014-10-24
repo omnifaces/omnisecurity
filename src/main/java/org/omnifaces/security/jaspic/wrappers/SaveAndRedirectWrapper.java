@@ -13,7 +13,6 @@
 package org.omnifaces.security.jaspic.wrappers;
 
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
-import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
 import static org.omnifaces.security.jaspic.Utils.redirect;
 
@@ -73,7 +72,7 @@ public class SaveAndRedirectWrapper extends ServerAuthModuleWrapper {
             }
 
             // No explicit login request and no protected resource. Just continue.
-            return SUCCESS;
+            return null;
         } else {
         	
         	// An explicit authentication call was done. Check if this call was accompanied by a
