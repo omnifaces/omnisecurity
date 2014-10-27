@@ -58,8 +58,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	}
 
 	@Override
-	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext)
-			throws AuthException {
+	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 
 		// Check if user code has triggered the SAM to start the authentication process. If so the SAM will redirect the user to the social provider.
 		if (isLoginRequest(request, response, httpMsgContext)) {
