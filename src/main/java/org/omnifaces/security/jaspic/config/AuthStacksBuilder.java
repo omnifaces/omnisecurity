@@ -108,7 +108,7 @@ public class AuthStacksBuilder {
 			}
 			
 			public ModuleBuilder options(Map<String, String> options) {
-				options.putAll(options);
+				this.options.putAll(options);
 				return this;
 			}
 			
