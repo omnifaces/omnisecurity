@@ -16,6 +16,7 @@ import static java.lang.Boolean.TRUE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
 import static org.omnifaces.security.jaspic.Utils.isOneOf;
+import static org.omnifaces.security.jaspic.config.ControlFlag.REQUIRED;
 
 import java.io.IOException;
 import java.util.List;
@@ -29,10 +30,16 @@ import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.callback.CallerPrincipalCallback;
 import javax.security.auth.message.callback.GroupPrincipalCallback;
+import javax.security.auth.message.config.AuthConfigFactory;
 import javax.security.auth.message.module.ServerAuthModule;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.omnifaces.security.jaspic.config.AuthStacks;
+import org.omnifaces.security.jaspic.config.AuthStacksBuilder;
+import org.omnifaces.security.jaspic.factory.OmniAuthConfigProvider;
 
 /**
  * A set of utility methods for using the JASPIC API, specially in combination with
@@ -57,6 +64,8 @@ public final class Jaspic {
 	public static final String LOGGEDIN_USERNAME = "org.omnifaces.security.message.loggedin.username";
 	public static final String LOGGEDIN_ROLES = "org.omnifaces.security.message.loggedin.roles";
 	public static final String LAST_AUTH_STATUS = "org.omnifaces.security.message.authStatus";
+	
+	public static final String CONTEXT_REGISTRATION_ID = "org.omnifaces.security.message.registrationId";
 	
 	// Key in the MessageInfo Map that when present AND set to true indicated a protected resource is being accessed.
 	// When the resource is not protected, GlassFish omits the key altogether. WebSphere does insert the key and sets
@@ -288,6 +297,73 @@ public final class Jaspic {
 	public static boolean isDidAuthenticationAndSucceeded(HttpServletRequest request) {
 		return TRUE.equals(request.getAttribute(DID_AUTHENTICATION)) && request.getUserPrincipal() != null;
 	}
+	
+	/**
+	 * Gets the app context ID from the servlet context.
+	 * 
+	 * <p>
+	 * The app context ID is the ID that JASPIC associates with the given application.
+	 * In this case that given application is the web application corresponding to the
+	 * ServletContext.
+	 * 
+	 * @param context the servlet context for which to obtain the JASPIC app context ID
+	 * @return the app context ID for the web application corresponding to the given context
+	 */
+	public static String getAppContextID(ServletContext context) {
+		return context.getVirtualServerName() + " " + context.getContextPath();
+	}
+	
+	/**
+	 * Registers a server auth module as the one and only module for the application corresponding to
+	 * the given servlet context.
+	 * 
+	 * <p>
+	 * This will override any other modules that have already been registered, either via proprietary
+	 * means or using the standard API.
+	 * 
+	 * @param serverAuthModule the server auth module to be registered
+	 * @param servletContext the context of the app for which the module is registered
+	 * @return A String identifier assigned by an underlying factory corresponding to an underlying factory-factory-factory registration
+	 */
+	public static String registerServerAuthModule(ServerAuthModule serverAuthModule, ServletContext servletContext) {
+		
+		AuthStacks stacks = new AuthStacksBuilder()
+	 	.stack()
+	 		.name(serverAuthModule.getClass().getSimpleName())
+	 		.setDefault()
+	 		.module()
+				.serverAuthModule(serverAuthModule)
+				.controlFlag(REQUIRED)
+				.add()
+			.add()
+		.build();
+
+		// Register the factory-factory-factory for the SAM
+		String registrationId = AuthConfigFactory.getFactory().registerConfigProvider(
+			new OmniAuthConfigProvider(stacks), 
+			"HttpServlet", getAppContextID(servletContext), "OmniSecurity authentication config provider"
+		);
+		
+		// Remember the registration ID returned by the factory, so we can unregister the JASPIC module when the web module
+		// is undeployed. JASPIC being the low level API that it is won't do this automatically.
+		servletContext.setAttribute(CONTEXT_REGISTRATION_ID, registrationId);
+		
+		return registrationId;
+	}
+	
+	/**
+	 * Deregisters the server auth module (and encompassing wrappers/factories) that was previously registered via a call
+	 * to registerServerAuthModule.
+	 * 
+	 * @param servletContext the context of the app for which the module is deregistered
+	 */
+	public static void deregisterServerAuthModule(ServletContext servletContext) {
+		String registrationId = (String) servletContext.getAttribute(CONTEXT_REGISTRATION_ID);
+		if (!isEmpty(registrationId)) {
+			AuthConfigFactory.getFactory().removeRegistration(registrationId);
+		}
+	}
+	
 	
 	// Couple of convenience methods for usage in JSF - may remove these as its too tightly coupled
 	
