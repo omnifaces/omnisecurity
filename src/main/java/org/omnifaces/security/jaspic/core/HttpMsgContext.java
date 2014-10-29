@@ -14,12 +14,17 @@ package org.omnifaces.security.jaspic.core;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
+import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
+import static javax.security.auth.message.AuthStatus.SUCCESS;
+import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.config.ServerAuthContext;
 import javax.security.auth.message.module.ServerAuthModule;
@@ -70,23 +75,6 @@ public class HttpMsgContext {
     
     public boolean isAuthenticationRequest() {
     	return Jaspic.isAuthenticationRequest(getRequest());
-    }
-    
-    /**
-     * Asks the container to register the given username and roles in order to make
-     * them available to the application for use with {@link HttpServletRequest#isUserInRole(String)} etc.
-     *
-     * <p>
-     * Note that after this call returned, the authenticated identity will not be immediately active. This
-     * will only take place (should not errors occur) after the {@link ServerAuthContext} or {@link ServerAuthModule}
-     * in which this call takes place return control back to the runtime.
-     * 
-     * @param username the user name that will become the caller principal
-     * @param roles the roles associated with the caller principal
-     *
-     */
-    public void notifyContainerAboutLogin(String username, List<String> roles) {
-    	Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
     }
     
     /**
@@ -233,6 +221,73 @@ public class HttpMsgContext {
      */
     public HttpServletResponse getResponse() {
         return (HttpServletResponse) messageInfo.getResponseMessage();
+    }
+    
+    /**
+     * Sets the response status to 404 (not found).
+     * <p>
+     * As a convenience this method returns SEND_FAILURE, so this method can be used in
+     * one fluent return statement from an auth module.
+     * 
+     * @return {@link AuthStatus#SEND_FAILURE}
+     */
+    public AuthStatus responseNotFound() {
+    	try {
+			getResponse().sendError(SC_NOT_FOUND);
+		} catch (IOException e) {
+			throw new IllegalStateException(e);
+		}
+    	
+    	return SEND_FAILURE;
+    }
+    
+    /**
+     * Asks the container to register the given username and roles in order to make
+     * them available to the application for use with {@link HttpServletRequest#isUserInRole(String)} etc.
+     *
+     * <p>
+     * Note that after this call returned, the authenticated identity will not be immediately active. This
+     * will only take place (should not errors occur) after the {@link ServerAuthContext} or {@link ServerAuthModule}
+     * in which this call takes place return control back to the runtime.
+     * 
+     * <p>
+     * As a convenience this method returns SUCCESS, so this method can be used in
+     * one fluent return statement from an auth module.
+     * 
+     * @param username the user name that will become the caller principal
+     * @param roles the roles associated with the caller principal
+     * @return {@link AuthStatus#SUCCESS}
+     *
+     */
+    public AuthStatus notifyContainerAboutLogin(String username, List<String> roles) {
+    	Jaspic.notifyContainerAboutLogin(clientSubject, handler, username, roles);
+    	
+    	return SUCCESS;
+    }
+    
+    /**
+     * Instructs the container to "do nothing".
+     * 
+     * <p>
+     * This is a somewhat peculiar requirement of JASPIC, which incidentally almost no containers actually require
+     * or enforce. 
+     * 
+     * <p>
+     * When intending to do nothing, most JASPIC auth modules simply return "SUCCESS", but according to
+     * the JASPIC spec the handler MUST have been used when returning that status. Because of this JASPIC
+     * implicitly defines a "protocol" that must be followed in this case; 
+     * invoking the CallerPrincipalCallback handler with a null as the username.
+     * 
+     * <p>
+     * As a convenience this method returns SUCCESS, so this method can be used in
+     * one fluent return statement from an auth module.
+     * 
+     * @return {@link AuthStatus#SUCCESS}
+     */
+    public AuthStatus doNothing() {
+    	Jaspic.notifyContainerAboutLogin(clientSubject, handler, null, null);
+    	
+    	return SUCCESS;
     }
 
 }
