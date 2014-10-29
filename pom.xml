@@ -13,10 +13,10 @@
 	<name>OmniSecurity</name>
 	<description>Java EE, JSF and JASPIC integrated security</description>
 
-	<url>http://code.google.com/p/omnisecurity</url>
+	<url>http://omnisecurity.omnifaces.org</url>
 	<organization>
 		<name>OmniFaces</name>
-		<url>http://code.google.com/p/omnisecurity</url>
+		<url>http://omnifaces.org</url>
 	</organization>
 	<inceptionYear>2013</inceptionYear>
 
@@ -29,16 +29,16 @@
 	</licenses>
 
 	<scm>
-		<url>http://code.google.com/p/omnisecurity/source/browse</url>
-		<connection>scm:hg:https://code.google.com/p/omnisecurity</connection>
-		<developerConnection>scm:hg:https://code.google.com/p/omnisecurity</developerConnection>
+		<url>https://github.com/omnifaces/omnisecurity</url>
+		<connection>scm:git:git://github.com/omnifaces/omnisecurity.git</connection>
+		<developerConnection>scm:git:git@github.com:omnifaces/omnisecurity.git</developerConnection>
 	</scm>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<jdk.version>1.7</jdk.version>
-		<javaee.version>6.0</javaee.version>
+		<javase.version>1.7</javase.version>
+		<javaee.version>7.0</javaee.version>
 	</properties>
 
 	<developers>
@@ -80,11 +80,11 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
+				<version>3.2</version>
 				<configuration>
-					<source>${jdk.version}</source>
-					<target>${jdk.version}</target>
-					<compilerVersion>${jdk.version}</compilerVersion>
+					<source>${javase.version}</source>
+					<target>${javase.version}</target>
+					<compilerVersion>${javase.version}</compilerVersion>
 				</configuration>
 			</plugin>
 			
