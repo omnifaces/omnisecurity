@@ -53,10 +53,15 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	private static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
 
 	private AuthStacks stacks;
+	private boolean onlyOneModule;
 
 	public OmniServerAuthContext(CallbackHandler handler, AuthStacks stacks) throws AuthException {
 
 		this.stacks = stacks;
+		
+		if (stacks.getModuleStacks().size() == 1) {
+			onlyOneModule = true;
+		}
 
 		for (List<Module> modules : stacks.getModuleStacks().values()) {
 			for (Module module : modules) {
@@ -143,14 +148,27 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		String authMethod = Jaspic.getAuthParameters(request).getAuthMethod();
 
 		if (authMethod == null) {
-			authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
+			
+			if (!onlyOneModule) {
+				authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
+			}
 
 			if (authMethod == null) {
 				authMethod = stacks.getDefaultStackName();
 			}
 		}
 
-		request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
+		if (!onlyOneModule) {
+			// If there's more than one module, remember the auth method in the session.
+			// This is needed so that after repeated interactions with the user we keep
+			// using the same auth method.
+			// TODO: Have several options here:
+			// * Don't save auth method (assumes no module goes into a dialog with the user)
+			// * Save auth method in session
+			// * Save auth method in cookie
+			// * Save auth method custom (use plug-in)
+			request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
+		}
 
 		return stacks.getModuleStacks().get(authMethod);
 	}
