@@ -31,10 +31,16 @@ import org.omnifaces.security.jaspic.wrappers.SaveAndRedirectWrapper;
 
 public class AuthStacksBuilder {
 	
-	AuthStacks authStacks = new AuthStacks();
+	private boolean logAuthExceptions = true;
+	private AuthStacks authStacks = new AuthStacks();
 	
 	public StackBuilder stack() {
 		return new StackBuilder();
+	}
+	
+	public AuthStacksBuilder logAuthExceptions(boolean logAuthExceptions) {
+		this.logAuthExceptions = logAuthExceptions;
+		return this;
 	}
 	
 	public AuthStacks build() {
@@ -42,6 +48,8 @@ public class AuthStacksBuilder {
 		if (authStacks.getDefaultStackName() == null && authStacks.getModuleStacks().size() > 0) {
 			authStacks.setDefaultStackName(authStacks.getModuleStacks().keySet().iterator().next());
 		}
+		
+		authStacks.setLogAuthExceptions(logAuthExceptions);
 		
 		return authStacks;
 	}

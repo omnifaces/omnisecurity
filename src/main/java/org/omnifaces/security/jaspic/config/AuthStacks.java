@@ -20,6 +20,7 @@ public class AuthStacks {
 
 	private String defaultStackName;
 	private Map<String, List<Module>> moduleStacks = new LinkedHashMap<>();
+	private boolean logAuthExceptions = true;
 
 	public List<Module> getDefaultStack() {
 		return moduleStacks.get(defaultStackName);
@@ -39,6 +40,14 @@ public class AuthStacks {
 
 	public void setModuleStacks(Map<String, List<Module>> moduleStacks) {
 		this.moduleStacks = moduleStacks;
+	}
+	
+	public boolean isLogAuthExceptions() {
+		return logAuthExceptions;
+	}
+
+	public void setLogAuthExceptions(boolean logAuthExceptions) {
+		this.logAuthExceptions = logAuthExceptions;
 	}
 
 }

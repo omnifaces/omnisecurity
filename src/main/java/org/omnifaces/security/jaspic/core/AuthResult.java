@@ -13,16 +13,28 @@
 package org.omnifaces.security.jaspic.core;
 
 
+import static java.util.logging.Level.SEVERE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
+
+import java.util.logging.Logger;
 
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 
 public class AuthResult {
 
+	private static final Logger logger = Logger.getLogger(AuthResult.class.getName());
+	
 	private AuthStatus authStatus = SEND_FAILURE;
 	private Exception exception;
+	private boolean logAuthExceptions = true;
 
+	public AuthResult() {}
+	
+	public AuthResult(boolean logAuthExceptions) {
+		this.logAuthExceptions = logAuthExceptions;
+	}
+	
 	public AuthStatus getAuthStatus() {
 		return authStatus;
 	}
@@ -67,6 +79,9 @@ public class AuthResult {
 	
 	private void maybeThrow() throws AuthException {
 		if (exception != null) {
+			if (logAuthExceptions) {
+				logger.log(SEVERE, "Exception occured when processing authentication", exception);
+			}
 			throw (AuthException) new AuthException().initCause(exception);
 		}
 	}
