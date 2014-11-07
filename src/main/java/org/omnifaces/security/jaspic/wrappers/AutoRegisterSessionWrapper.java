@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.wrappers;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.jaspic.core.Jaspic.LOGGEDIN_ROLES;
@@ -89,13 +90,16 @@ public class AutoRegisterSessionWrapper extends ServerAuthModuleWrapper {
 	
 	@SuppressWarnings("unchecked")
 	private void saveAuthentication(HttpServletRequest request) {
-		request.getSession().setAttribute(
-			AUTHENTICATOR_SESSION_NAME,
-			new AuthenticationData(
-				(String) request.getAttribute(LOGGEDIN_USERNAME),
-				(List<String>) request.getAttribute(LOGGEDIN_ROLES)
-			)
-		);
+		
+		if (request.getAttribute(LOGGEDIN_USERNAME) != null) {
+			request.getSession().setAttribute(
+				AUTHENTICATOR_SESSION_NAME,
+				new AuthenticationData(
+					(String) request.getAttribute(LOGGEDIN_USERNAME),
+					(List<String>) request.getAttribute(LOGGEDIN_ROLES)
+				)
+			);
+		}
 	}
 	
 	private AuthenticationData getAuthenticationDataFromSession(HttpMsgContext msgContext) {
@@ -114,7 +118,11 @@ public class AutoRegisterSessionWrapper extends ServerAuthModuleWrapper {
 
 		public AuthenticationData(String username, List<String> applicationRoles) {
 			this.username = username;
-			this.applicationRoles = unmodifiableList(new ArrayList<>(applicationRoles));
+			if (applicationRoles != null) {
+				this.applicationRoles = unmodifiableList(new ArrayList<>(applicationRoles));
+			} else {
+				this.applicationRoles = emptyList();
+			}
 		}
 
 		public String getUserName() {
