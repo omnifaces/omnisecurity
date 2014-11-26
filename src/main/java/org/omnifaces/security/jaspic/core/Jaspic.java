@@ -96,7 +96,11 @@ public final class Jaspic {
 		try {
 			request.setAttribute(IS_AUTHENTICATION_FROM_FILTER, true);
 			return request.authenticate(response);
-		} catch (ServletException | IOException e) {
+		} catch (ServletException e) {
+			// Really problematic case, some servers (particularly JBoss Undertow since 1.1.0) throw a
+			// ServletException when there's isn't actually an error, but just to indicate "nothing" has happened.
+			return false;
+		} catch (IOException e) {
 			throw new IllegalArgumentException(e);
 		} finally {
 			request.removeAttribute(IS_AUTHENTICATION_FROM_FILTER);
