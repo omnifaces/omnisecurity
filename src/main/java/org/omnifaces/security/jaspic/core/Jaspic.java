@@ -55,7 +55,6 @@ public final class Jaspic {
 	public static final String IS_AUTHENTICATION = "org.omnifaces.security.message.request.authentication";
 	public static final String IS_AUTHENTICATION_FROM_FILTER = "org.omnifaces.security.message.request.authenticationFromFilter";
 	public static final String IS_SECURE_RESPONSE = "org.omnifaces.security.message.request.secureResponse";
-	public static final String IS_LOGOUT = "org.omnifaces.security.message.request.isLogout";
 	public static final String IS_REFRESH = "org.omnifaces.security.message.request.isRefresh";
 	public static final String DID_AUTHENTICATION = "org.omnifaces.security.message.request.didAuthentication";
 	
@@ -133,19 +132,13 @@ public final class Jaspic {
 	
 	public static void logout(HttpServletRequest request, HttpServletResponse response) {
 		try {
-			
 			request.logout();
-			
-			// Hack to signal to the SAM that we are logging out. Only works this way
-			// for the OmniServerAuthModule.
-			request.setAttribute(IS_LOGOUT, true);
-			request.authenticate(response);
-			
+			// Need to invalidate the session to really logout - request.logout only logs the user out for the *current request*
+			// This is nearly always unwanted. Although the SAM's cleanSubject method can clear any session data too if needed,
+			// invalidating the session is pretty much the safest way.
 			request.getSession().invalidate();
-		} catch (ServletException | IOException e) {
+		} catch (ServletException e) {
 			throw new IllegalArgumentException(e);
-		} finally {
-			request.removeAttribute(IS_LOGOUT);
 		}
 	}
 	
@@ -159,7 +152,7 @@ public final class Jaspic {
 			// TODO: not 100% sure about this; need mechanism for wrappers to abort the chain and signal to "do nothing"
 			// TODO: use handler for "do nothing here"?
 			if (status == null) {
-				status = SUCCESS; 
+				status = SUCCESS;
 			}
 			
 			authResult.setAuthStatus(status);
@@ -206,14 +199,9 @@ public final class Jaspic {
 		return TRUE.equals(request.getAttribute(IS_SECURE_RESPONSE));
 	}
 	
-	public static boolean isLogoutRequest(HttpServletRequest request) {
-		return TRUE.equals(request.getAttribute(IS_LOGOUT));
-	}
-	
 	public static boolean isRefresh(HttpServletRequest request) {
 		return TRUE.equals(request.getAttribute(IS_REFRESH));
 	}
-	
 	
 	
 	/**
@@ -228,8 +216,7 @@ public final class Jaspic {
 		return isOneOf(TRUE, 
 			request.getAttribute(IS_AUTHENTICATION), 
 			request.getAttribute(IS_AUTHENTICATION_FROM_FILTER), 
-			request.getAttribute(IS_SECURE_RESPONSE),
-			request.getAttribute(IS_LOGOUT)
+			request.getAttribute(IS_SECURE_RESPONSE)
 		);
 	}
 	
