@@ -12,18 +12,32 @@
  */
 package org.omnifaces.security.jaspic.authmodules;
 
+import static java.lang.System.currentTimeMillis;
+import static java.util.Arrays.asList;
+import static java.util.logging.Level.WARNING;
 import static javax.security.auth.message.AuthStatus.SEND_CONTINUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.brickred.socialauth.util.SocialAuthUtil.getRequestParametersMap;
+import static org.omnifaces.security.jaspic.Utils.encodeURL;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
+import static org.omnifaces.security.jaspic.Utils.isEmpty;
+import static org.omnifaces.security.jaspic.Utils.serializeURLSafe;
+import static org.omnifaces.security.jaspic.Utils.toParameterMap;
+import static org.omnifaces.security.jaspic.Utils.toQueryString;
+import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
 import static org.omnifaces.security.jaspic.core.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
-import static org.omnifaces.security.jaspic.Utils.encodeURL;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -37,19 +51,24 @@ import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
 import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
 import org.omnifaces.security.jaspic.exceptions.RegistrationException;
+import org.omnifaces.security.jaspic.request.RequestDataDAO;
+import org.omnifaces.security.jaspic.request.StateCookieDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 
 @SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
+	public static final Logger logger = Logger.getLogger(SocialServerAuthModule.class.getName());
+	
 	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";
 	
 	public static final String CALLBACK_URL 		  = "callbackUrl";
 	public static final String PROFILE_INCOMPLETE_URL = "profileIncompleteUrl";
 	public static final String REGISTRATION_ERROR_URL =	"registrationErrorUrl";
 	
-	private static final String SOCIAL_AUTH_MANAGER = "socialAuthManager";
+	private StateCookieDAO stateCookieDAO = new StateCookieDAO();
+	private final RequestDataDAO requestDAO = new RequestDataDAO();
 
 	private String providerId;
 
@@ -70,7 +89,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			if (isCallbackRequest(request, response, httpMsgContext)) {
 				// Contact the social provider directly (don't involve the user) with the tokens from the request
 				// in order to get the users identity.
-				getUserProfileFromSocialProvider(request);
+				getUserProfileFromSocialProvider(request, httpMsgContext);
 			}
 			
 			// See if the social profile is available. This can be either directly after the arrival from the social provider
@@ -89,29 +108,21 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	
 	private boolean isLoginRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {
 
-		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-
-		if (socialAuthManager == null && isAuthenticationRequest(request)) {
-			SocialAuthConfig config = new SocialAuthConfig();
+		if (isAuthenticationRequest(request)) {
 
 			try {
+				// Invalidate the session so we're sure to start with a clean slate for this new login
+				request.getSession().invalidate();
+				
+				// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
+				// will be compared when the callback happens to make sure the request and callback match
+				String state = generateAuthMethodState(httpMsgContext);
+				stateCookieDAO.save(request, response, state);
 
-				SocialAuthPropertiesProvider propertiesProvider = Beans.getReferenceOrNull(SocialAuthPropertiesProvider.class);
-				if (propertiesProvider != null) {
-					config.load(propertiesProvider.getProperties());
-				}
-				else {
-					config.load();
-				}
-
-				socialAuthManager = new SocialAuthManager();
-				socialAuthManager.setSocialAuthConfig(config);
-
-				// Null the profile for the case we still have one from a previous session
-				request.getSession().setAttribute(SOCIAL_PROFILE, null);
-				request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, socialAuthManager);
-
-				response.sendRedirect(socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)));
+				response.sendRedirect(
+					getSocialAuthManager().getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)) +
+					"&state=" + state
+				);
 
 				return true;
 
@@ -123,23 +134,83 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		
 		return false;
 	}
+	
+	private String generateAuthMethodState(HttpMsgContext httpMsgContext) {
+		Map<String, List<String>> parametersMap = new HashMap<>();
+		parametersMap.put("authMethod", asList(httpMsgContext.getAuthParameters().getAuthMethod()));
+		parametersMap.put("timeStamp", asList(currentTimeMillis() + ""));
+		
+		String redirectUrl = httpMsgContext.getAuthParameters().getRedirectUrl();
+    	if (redirectUrl != null) {
+    		parametersMap.put("redirectUrl", asList(redirectUrl));
+    	}
+		
+		return serializeURLSafe(toQueryString(parametersMap));
+	}
+	
+	protected SocialAuthManager getSocialAuthManager() {
+		try {
+			SocialAuthConfig config = new SocialAuthConfig();
+		
+
+			SocialAuthPropertiesProvider propertiesProvider = Beans.getReferenceOrNull(SocialAuthPropertiesProvider.class);
+			if (propertiesProvider != null) {
+				config.load(propertiesProvider.getProperties());
+			}
+			else {
+				config.load();
+			}
+
+			SocialAuthManager socialAuthManager = new SocialAuthManager();
+			socialAuthManager.setSocialAuthConfig(config);
+			
+			return socialAuthManager;
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		if (request.getRequestURI().equals(httpMsgContext.getModuleOption(CALLBACK_URL)) && request.getSession().getAttribute(SOCIAL_AUTH_MANAGER) != null) {
-			return true;
+		if (request.getRequestURI().equals(httpMsgContext.getModuleOption(CALLBACK_URL)) && !isEmpty(request.getParameter("state"))) {
+			
+			try {
+				String state = request.getParameter("state");
+				Cookie cookie = stateCookieDAO.get(request);
+				
+				if (cookie != null && state.equals(cookie.getValue())) {
+					return true;
+				} else {
+					logger.log(WARNING, 
+						"State parameter provided with callback URL, but did not match cookie. " + 
+						"State param value: " + state + " " +
+						"Cookie value: " + (cookie == null? "<no cookie>" : cookie.getValue())
+					);
+				}
+			} finally {
+				stateCookieDAO.remove(request, response);
+			}
 		}
 
 		return false;
 	}
 	
-	private void getUserProfileFromSocialProvider(HttpServletRequest request) throws Exception {
-		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_AUTH_MANAGER);
-		request.getSession().setAttribute(SOCIAL_AUTH_MANAGER, null);
-		
+	private void getUserProfileFromSocialProvider(HttpServletRequest request, HttpMsgContext httpMsgContext) throws Exception {
+		SocialAuthManager socialAuthManager = getSocialAuthManager();
+
+		// For some reason this doubles as a kind of init for the SocialAuthManager instance.
+		socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL));
+	
 		AuthProvider authProvider = socialAuthManager.connect(getRequestParametersMap(request));
 
 		Profile profile = authProvider.getUserProfile();
 		request.getSession().setAttribute(SOCIAL_PROFILE, profile);
+		
+		Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(request.getParameter("state")));
+		
+		List<String> redirectUrlValues = requestStateParameters.get("redirectUrl");
+		if (!isEmpty(redirectUrlValues)) {
+			requestDAO.saveUrlOnly(request, redirectUrlValues.get(0));
+		}
 	}
 	
 	private boolean isProfileAvailable(HttpServletRequest request) {

@@ -12,8 +12,6 @@
  */
 package org.omnifaces.security.jaspic.request;
 
-import static java.util.concurrent.TimeUnit.DAYS;
-
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,13 +23,12 @@ import javax.servlet.http.HttpServletResponse;
  * @author Arjan Tijms
  *
  */
-public class LoginTokenCookieDAO extends BaseCookieDAO {
+public class StateCookieDAO extends BaseCookieDAO {
 	
-	private static final String COOKIE_NAME = "omnisecurity_login_token";
-	private static final int MAX_AGE = (int) DAYS.toSeconds(14);
+	private static final String COOKIE_NAME = "omnisecurity_state_token";
 
 	public void save(HttpServletRequest request, HttpServletResponse response, String value) {
-		save(request, response, COOKIE_NAME, value, MAX_AGE);
+		save(request, response, COOKIE_NAME, value, null);
 	}
 	
 	public Cookie get(HttpServletRequest request) {

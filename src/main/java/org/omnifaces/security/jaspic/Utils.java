@@ -13,14 +13,33 @@
 package org.omnifaces.security.jaspic;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.regex.Pattern.quote;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.bind.DatatypeConverter;
 
 /**
  * An assortment of various utility methods.
@@ -116,6 +135,154 @@ public final class Utils {
 		catch (UnsupportedEncodingException e) {
 			throw new UnsupportedOperationException(ERROR_UNSUPPORTED_ENCODING, e);
 		}
+	}
+	
+	public static String decodeURL(String string) {
+		if (string == null) {
+			return null;
+		}
+
+		try {
+			return URLDecoder.decode(string, UTF_8.name());
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new UnsupportedOperationException(ERROR_UNSUPPORTED_ENCODING, e);
+		}
+	}
+	
+	/**
+	 * Converts the given request query string to request parameter values map.
+	 * @param queryString The request query string.
+	 * @return The request query string as request parameter values map.
+	 */
+	public static Map<String, List<String>> toParameterMap(String queryString) {
+		String[] parameters = queryString.split(quote("&"));
+		Map<String, List<String>> parameterMap = new LinkedHashMap<>(parameters.length);
+
+		for (String parameter : parameters) {
+			if (parameter.contains("=")) {
+				String[] pair = parameter.split(quote("="));
+				String key = decodeURL(pair[0]);
+				String value = (pair.length > 1 && !isEmpty(pair[1])) ? decodeURL(pair[1]) : "";
+				List<String> values = parameterMap.get(key);
+
+				if (values == null) {
+					values = new ArrayList<>(1);
+					parameterMap.put(key, values);
+				}
+
+				values.add(value);
+			}
+		}
+
+		return parameterMap;
+	}
+
+	/**
+	 * Converts the given request parameter values map to request query string.
+	 * @param parameterMap The request parameter values map.
+	 * @return The request parameter values map as request query string.
+	 */
+	public static String toQueryString(Map<String, List<String>> parameterMap) {
+		StringBuilder queryString = new StringBuilder();
+
+		for (Entry<String, List<String>> entry : parameterMap.entrySet()) {
+			String name = encodeURL(entry.getKey());
+
+			for (String value : entry.getValue()) {
+				if (queryString.length() > 0) {
+					queryString.append("&");
+				}
+
+				queryString.append(name).append("=").append(encodeURL(value));
+			}
+		}
+
+		return queryString.toString();
+	}
+	
+	/**
+	 * Serialize the given string to the short possible unique URL-safe representation. The current implementation will
+	 * decode the given string with UTF-8 and then compress it with ZLIB using "best compression" algorithm and then
+	 * Base64-encode the resulting bytes without the <code>=</code> padding, whereafter the Base64 characters
+	 * <code>+</code> and <code>/</code> are been replaced by respectively <code>-</code> and <code>_</code> to make it
+	 * URL-safe (so that no platform-sensitive URL-encoding needs to be done when used in URLs).
+	 * @param string The string to be serialized.
+	 * @return The serialized URL-safe string, or <code>null</code> when the given string is itself <code>null</code>.
+	 */
+	public static String serializeURLSafe(String string) {
+		if (string == null) {
+			return null;
+		}
+
+		try {
+			InputStream raw = new ByteArrayInputStream(string.getBytes(UTF_8));
+			ByteArrayOutputStream deflated = new ByteArrayOutputStream();
+			stream(raw, new DeflaterOutputStream(deflated, new Deflater(Deflater.BEST_COMPRESSION)));
+			String base64 = DatatypeConverter.printBase64Binary(deflated.toByteArray());
+			return base64.replace('+', '-').replace('/', '_').replace("=", "");
+		}
+		catch (IOException e) {
+			// This will occur when ZLIB and/or UTF-8 are not supported, but this is not to be expected these days.
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Unserialize the given serialized URL-safe string. This does the inverse of {@link #serializeURLSafe(String)}.
+	 * @param string The serialized URL-safe string to be unserialized.
+	 * @return The unserialized string, or <code>null</code> when the given string is by itself <code>null</code>.
+	 * @throws IllegalArgumentException When the given serialized URL-safe string is not in valid format as returned by
+	 * {@link #serializeURLSafe(String)}.
+	 */
+	public static String unserializeURLSafe(String string) {
+		if (string == null) {
+			return null;
+		}
+
+		try {
+			String base64 = string.replace('-', '+').replace('_', '/') + "===".substring(0, string.length() % 4);
+			InputStream deflated = new ByteArrayInputStream(DatatypeConverter.parseBase64Binary(base64));
+			return new String(toByteArray(new InflaterInputStream(deflated)), UTF_8);
+		}
+		catch (UnsupportedEncodingException e) {
+			// This will occur when UTF-8 is not supported, but this is not to be expected these days.
+			throw new RuntimeException(e);
+		}
+		catch (Exception e) {
+			// This will occur when the string is not in valid Base64 or ZLIB format.
+			throw new IllegalArgumentException(e);
+		}
+	}
+	
+	public static long stream(InputStream input, OutputStream output) throws IOException {
+		try (ReadableByteChannel inputChannel = Channels.newChannel(input);
+			WritableByteChannel outputChannel = Channels.newChannel(output))
+		{
+			ByteBuffer buffer = ByteBuffer.allocateDirect(10240);
+			long size = 0;
+
+			while (inputChannel.read(buffer) != -1) {
+				buffer.flip();
+				size += outputChannel.write(buffer);
+				buffer.clear();
+			}
+
+			return size;
+		}
+	}
+	
+	/**
+	 * Read the given input stream into a byte array. The given input stream will implicitly be closed after streaming,
+	 * regardless of whether an exception is been thrown or not.
+	 * @param input The input stream.
+	 * @return The input stream as a byte array.
+	 * @throws IOException When an I/O error occurs.
+	 */
+	public static byte[] toByteArray(InputStream input) throws IOException {
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		stream(input, output);
+		return output.toByteArray();
 	}
 
 }

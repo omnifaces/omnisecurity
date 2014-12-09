@@ -13,8 +13,12 @@
 package org.omnifaces.security.jaspic.factory;
 
 import static javax.security.auth.message.AuthStatus.FAILURE;
+import static org.omnifaces.security.jaspic.Utils.isEmpty;
+import static org.omnifaces.security.jaspic.Utils.toParameterMap;
+import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -149,7 +153,15 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 		if (authMethod == null) {
 			
-			if (!onlyOneModule) {
+			String state = request.getParameter("state");
+			if (!isEmpty(state)) {
+				Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(state));
+				if (!isEmpty(requestStateParameters.get("authMethod"))) {
+					authMethod = requestStateParameters.get("authMethod").get(0);
+				}
+			}
+			
+			if (authMethod == null && !onlyOneModule) {
 				authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
 			}
 
