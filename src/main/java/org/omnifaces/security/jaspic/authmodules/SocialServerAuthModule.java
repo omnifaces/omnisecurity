@@ -40,10 +40,10 @@ import javax.security.auth.message.AuthStatus;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.brickred.socialauth.AuthProvider;
 import org.brickred.socialauth.Profile;
-import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.omnifaces.security.cdi.Beans;
 import org.omnifaces.security.jaspic.core.HttpMsgContext;
@@ -51,10 +51,11 @@ import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
 import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
 import org.omnifaces.security.jaspic.exceptions.RegistrationException;
+import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.request.StateCookieDAO;
-import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
+import org.omnifaces.security.socialauth.SocialAuthManagerFactory;
 
 @SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
 public class SocialServerAuthModule extends HttpServerAuthModule {
@@ -62,10 +63,11 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	public static final Logger logger = Logger.getLogger(SocialServerAuthModule.class.getName());
 	
 	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";
-	
 	public static final String CALLBACK_URL 		  = "callbackUrl";
 	public static final String PROFILE_INCOMPLETE_URL = "profileIncompleteUrl";
 	public static final String REGISTRATION_ERROR_URL =	"registrationErrorUrl";
+	
+	public boolean useSessions;
 	
 	private StateCookieDAO stateCookieDAO = new StateCookieDAO();
 	private final RequestDataDAO requestDAO = new RequestDataDAO();
@@ -74,6 +76,11 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	public SocialServerAuthModule(String providerId) {
 		this.providerId = providerId;
+	}
+	
+	@Override
+	public void initializeModule(HttpMsgContext httpMsgContext) {
+		useSessions = Boolean.valueOf(httpMsgContext.getModuleOption("useSessions"));
 	}
 
 	@Override
@@ -111,8 +118,8 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		if (isAuthenticationRequest(request)) {
 
 			try {
-				// Invalidate the session so we're sure to start with a clean slate for this new login
-				request.getSession().invalidate();
+				// See if we can invalidate the session so we're sure to start with a clean slate for this new login
+				checkSessionInvalidate(request);
 				
 				// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
 				// will be compared when the callback happens to make sure the request and callback match
@@ -120,7 +127,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 				stateCookieDAO.save(request, response, state);
 
 				response.sendRedirect(
-					getSocialAuthManager().getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)) +
+					getSocialAuthManager(httpMsgContext).getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)) +
 					"&state=" + state
 				);
 
@@ -135,38 +142,19 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		return false;
 	}
 	
-	private String generateAuthMethodState(HttpMsgContext httpMsgContext) {
-		Map<String, List<String>> parametersMap = new HashMap<>();
-		parametersMap.put("authMethod", asList(httpMsgContext.getAuthParameters().getAuthMethod()));
-		parametersMap.put("timeStamp", asList(currentTimeMillis() + ""));
+	private void checkSessionInvalidate(HttpServletRequest request) {
 		
-		String redirectUrl = httpMsgContext.getAuthParameters().getRedirectUrl();
-    	if (redirectUrl != null) {
-    		parametersMap.put("redirectUrl", asList(redirectUrl));
-    	}
+		RequestData requestData = requestDAO.get(request);
+		if (requestData != null && requestData.isRestoreRequest()) {
+			// Like the FORM authentication mechanism in Servlet, restoring a request requires the session, since
+			// it stores all request data, like POST data, headers, etc.
+			return;
+		}
 		
-		return serializeURLSafe(toQueryString(parametersMap));
-	}
-	
-	protected SocialAuthManager getSocialAuthManager() {
-		try {
-			SocialAuthConfig config = new SocialAuthConfig();
-		
-
-			SocialAuthPropertiesProvider propertiesProvider = Beans.getReferenceOrNull(SocialAuthPropertiesProvider.class);
-			if (propertiesProvider != null) {
-				config.load(propertiesProvider.getProperties());
-			}
-			else {
-				config.load();
-			}
-
-			SocialAuthManager socialAuthManager = new SocialAuthManager();
-			socialAuthManager.setSocialAuthConfig(config);
-			
-			return socialAuthManager;
-		} catch (Exception e) {
-			throw new IllegalStateException(e);
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			// Invalidate the session so we're sure to start with a clean slate for this new login
+			session.invalidate();
 		}
 	}
 
@@ -195,7 +183,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	}
 	
 	private void getUserProfileFromSocialProvider(HttpServletRequest request, HttpMsgContext httpMsgContext) throws Exception {
-		SocialAuthManager socialAuthManager = getSocialAuthManager();
+		SocialAuthManager socialAuthManager = getSocialAuthManager(httpMsgContext);
 
 		// For some reason this doubles as a kind of init for the SocialAuthManager instance.
 		socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL));
@@ -245,6 +233,27 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		}
 		
 		return SEND_FAILURE;
+	}
+	
+	private String generateAuthMethodState(HttpMsgContext httpMsgContext) {
+		Map<String, List<String>> parametersMap = new HashMap<>();
+		parametersMap.put("authMethod", asList(httpMsgContext.getAuthParameters().getAuthMethod()));
+		parametersMap.put("timeStamp", asList(currentTimeMillis() + ""));
+		
+		String redirectUrl = httpMsgContext.getAuthParameters().getRedirectUrl();
+    	if (redirectUrl != null) {
+    		parametersMap.put("redirectUrl", asList(redirectUrl));
+    	}
+		
+		return serializeURLSafe(toQueryString(parametersMap));
+	}
+	
+	private SocialAuthManager getSocialAuthManager(HttpMsgContext httpMsgContext) {
+		if (useSessions) {
+			return SocialAuthManagerFactory.getSocialAuthManagerFromSession(httpMsgContext.getRequest().getSession());
+		} else {
+			return SocialAuthManagerFactory.getSocialAuthManager();
+		}
 	}
 
 }

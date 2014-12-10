@@ -44,6 +44,7 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler, @SuppressWarnings("rawtypes") Map options) throws AuthException {
 		this.handler = handler;
 		this.options = options;
+		initializeModule(new HttpMsgContext(handler, options, null, null));
 	}
 
 	/**
@@ -74,6 +75,10 @@ public abstract class HttpServerAuthModule implements ServerAuthModule {
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
 	    HttpMsgContext msgContext = new HttpMsgContext(handler, options, messageInfo, subject);
 		cleanHttpSubject(msgContext.getRequest(), msgContext.getResponse(), msgContext);
+	}
+	
+	public void initializeModule(HttpMsgContext httpMsgContext) {
+		
 	}
 
 	public AuthStatus validateHttpRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws AuthException {

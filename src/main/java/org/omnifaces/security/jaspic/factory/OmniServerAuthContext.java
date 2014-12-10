@@ -153,6 +153,8 @@ public class OmniServerAuthContext implements ServerAuthContext {
 
 		if (authMethod == null) {
 			
+			// Currently depends on the auth module to set this in a callback URL.
+			// TODO: this needs much better handling
 			String state = request.getParameter("state");
 			if (!isEmpty(state)) {
 				Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(state));

@@ -55,7 +55,9 @@ public class HttpMsgContext {
         }
         this.messageInfo = messageInfo;
         this.clientSubject = clientSubject;
-        this.authParameters = Jaspic.getAuthParameters(getRequest());       
+        if (messageInfo != null) {
+        	this.authParameters = Jaspic.getAuthParameters(getRequest());
+        }
     }
 
     /**
