@@ -7,6 +7,7 @@ import javax.servlet.http.HttpSession;
 import org.brickred.socialauth.SocialAuthConfig;
 import org.brickred.socialauth.SocialAuthManager;
 import org.omnifaces.security.jaspic.user.SocialAuthPropertiesProvider;
+import org.omnifaces.security.socialauth.providers.StatelessTwitterImpl;
 
 public final class SocialAuthManagerFactory {
 	
@@ -17,7 +18,7 @@ public final class SocialAuthManagerFactory {
 		
 		if (socialAuthManager == null) {
 			socialAuthManager = getSocialAuthManager();
-			session.setAttribute(SOCIAL_AUTH_MANAGER_SESSION, session);
+			session.setAttribute(SOCIAL_AUTH_MANAGER_SESSION, socialAuthManager);
 		}
 		
 		return socialAuthManager;
@@ -27,6 +28,8 @@ public final class SocialAuthManagerFactory {
 		try {
 			SocialAuthConfig config = new SocialAuthConfig();
 
+			// config.addProvider("twitter", StatelessTwitterImpl.class);
+			
 			SocialAuthPropertiesProvider propertiesProvider = getReferenceOrNull(SocialAuthPropertiesProvider.class);
 			if (propertiesProvider != null) {
 				config.load(propertiesProvider.getProperties());
@@ -42,6 +45,10 @@ public final class SocialAuthManagerFactory {
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
 		}
+	}
+	
+	public static boolean isSocialAuthManagerPresent(HttpSession session) {
+		return session.getAttribute(SOCIAL_AUTH_MANAGER_SESSION) != null;
 	}
 	
 }

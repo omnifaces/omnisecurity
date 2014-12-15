@@ -106,11 +106,13 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 		}
 		
 		// If there's a "remember me" cookie present, remove it.
-		if (cookieDAO.get(request) != null) {
+		Cookie cookie = cookieDAO.get(request);
+		
+		if (cookie != null) {
 			cookieDAO.remove(request, response);
 			Delegators delegators = tryGetDelegators();
 			if (delegators != null && delegators.getTokenAuthenticator() != null) {
-				delegators.getTokenAuthenticator().removeLoginToken();			
+				delegators.getTokenAuthenticator().removeLoginToken(cookie.getValue());
 			}				
 		}
 		

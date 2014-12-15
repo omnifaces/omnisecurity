@@ -4,6 +4,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.omnifaces.security.jaspic.Utils;
+
 public class BaseCookieDAO {
 
 	public void save(HttpServletRequest request, HttpServletResponse response, String name, String value, Integer maxAge) {
@@ -12,7 +14,7 @@ public class BaseCookieDAO {
 			cookie.setMaxAge(maxAge);
 		}
 		cookie.setHttpOnly(true);
-		cookie.setPath(request.getContextPath());
+		cookie.setPath(Utils.isEmpty(request.getContextPath())? "/" : request.getContextPath());
 
 		response.addCookie(cookie);
 	}
@@ -32,7 +34,7 @@ public class BaseCookieDAO {
 	public void remove(HttpServletRequest request, HttpServletResponse response, String name) {
 		Cookie cookie = new Cookie(name, null);
 		cookie.setMaxAge(0);
-		cookie.setPath(request.getContextPath());
+		cookie.setPath(Utils.isEmpty(request.getContextPath())? "/" : request.getContextPath());
 
 		response.addCookie(cookie);
 	}

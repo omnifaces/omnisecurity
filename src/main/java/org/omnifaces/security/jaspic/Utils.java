@@ -150,6 +150,21 @@ public final class Utils {
 		}
 	}
 	
+	public static String getSingleParameterFromState(String state, String paramName) {
+		Map<String, List<String>> requestStateParameters = getParameterMapFromState(state);
+		
+		List<String> parameterValues = requestStateParameters.get(paramName);
+		if (!isEmpty(parameterValues)) {
+			return parameterValues.get(0);
+		}
+		
+		return null;
+	}
+	
+	public static Map<String, List<String>> getParameterMapFromState(String state) {
+		return toParameterMap(unserializeURLSafe(state));
+	}
+	
 	/**
 	 * Converts the given request query string to request parameter values map.
 	 * @param queryString The request query string.

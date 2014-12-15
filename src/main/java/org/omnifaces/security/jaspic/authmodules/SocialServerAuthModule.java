@@ -21,14 +21,14 @@ import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.brickred.socialauth.util.SocialAuthUtil.getRequestParametersMap;
 import static org.omnifaces.security.jaspic.Utils.encodeURL;
 import static org.omnifaces.security.jaspic.Utils.getBaseURL;
+import static org.omnifaces.security.jaspic.Utils.getSingleParameterFromState;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
 import static org.omnifaces.security.jaspic.Utils.serializeURLSafe;
-import static org.omnifaces.security.jaspic.Utils.toParameterMap;
 import static org.omnifaces.security.jaspic.Utils.toQueryString;
-import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
 import static org.omnifaces.security.jaspic.core.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
+import static org.omnifaces.security.socialauth.SocialAuthManagerFactory.isSocialAuthManagerPresent;
 
 import java.util.HashMap;
 import java.util.List;
@@ -62,12 +62,17 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	public static final Logger logger = Logger.getLogger(SocialServerAuthModule.class.getName());
 	
-	public static final String SOCIAL_PROFILE 		= "omnisecurity.socialProfile";
+	public static final String SOCIAL_PROFILE 		  = "omnisecurity.socialProfile";
+	
+	public static final String USE_SESSIONS 		  = "useSessions";
 	public static final String CALLBACK_URL 		  = "callbackUrl";
 	public static final String PROFILE_INCOMPLETE_URL = "profileIncompleteUrl";
 	public static final String REGISTRATION_ERROR_URL =	"registrationErrorUrl";
 	
 	public boolean useSessions;
+	public String callbackURL;
+	public String profileIncompleteUrl;
+	public String registrationErrorUrl;
 	
 	private StateCookieDAO stateCookieDAO = new StateCookieDAO();
 	private final RequestDataDAO requestDAO = new RequestDataDAO();
@@ -80,7 +85,10 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	
 	@Override
 	public void initializeModule(HttpMsgContext httpMsgContext) {
-		useSessions = Boolean.valueOf(httpMsgContext.getModuleOption("useSessions"));
+		useSessions = Boolean.valueOf(httpMsgContext.getModuleOption(USE_SESSIONS));
+		callbackURL = httpMsgContext.getModuleOption(CALLBACK_URL);
+		profileIncompleteUrl = httpMsgContext.getModuleOption(PROFILE_INCOMPLETE_URL);
+		registrationErrorUrl = httpMsgContext.getModuleOption(REGISTRATION_ERROR_URL);
 	}
 
 	@Override
@@ -118,17 +126,28 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		if (isAuthenticationRequest(request)) {
 
 			try {
-				// See if we can invalidate the session so we're sure to start with a clean slate for this new login
-				checkSessionInvalidate(request);
 				
-				// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
-				// will be compared when the callback happens to make sure the request and callback match
-				String state = generateAuthMethodState(httpMsgContext);
-				stateCookieDAO.save(request, response, state);
-
+				ExtraParameters extraParameters = new ExtraParameters();
+				
+				if (!useSessions) {
+					
+					// Not using sessions for authentication
+					
+					// See if we can invalidate the session so we're sure to start with a clean slate for this new login
+					if (checkSessionInvalidate(request)) {
+					
+						// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
+						// will be compared when the callback happens to make sure the request and callback match
+						String state = generateAuthMethodState(httpMsgContext);
+						stateCookieDAO.save(request, response, state);
+						
+						extraParameters.initParams(providerId, callbackURL, state);
+					}
+				}
+				
 				response.sendRedirect(
-					getSocialAuthManager(httpMsgContext).getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL)) +
-					"&state=" + state
+					getSocialAuthManager(httpMsgContext).getAuthenticationUrl(providerId, getBaseURL(request) + callbackURL + extraParameters.getCallbackParam()) +
+					extraParameters.getProviderParam()
 				);
 
 				return true;
@@ -142,13 +161,13 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		return false;
 	}
 	
-	private void checkSessionInvalidate(HttpServletRequest request) {
+	private boolean checkSessionInvalidate(HttpServletRequest request) {
 		
 		RequestData requestData = requestDAO.get(request);
 		if (requestData != null && requestData.isRestoreRequest()) {
 			// Like the FORM authentication mechanism in Servlet, restoring a request requires the session, since
 			// it stores all request data, like POST data, headers, etc.
-			return;
+			return false;
 		}
 		
 		HttpSession session = request.getSession(false);
@@ -156,48 +175,60 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			// Invalidate the session so we're sure to start with a clean slate for this new login
 			session.invalidate();
 		}
+		
+		return true;
 	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
-		if (request.getRequestURI().equals(httpMsgContext.getModuleOption(CALLBACK_URL)) && !isEmpty(request.getParameter("state"))) {
+		if (request.getRequestURI().equals(callbackURL)) {
 			
-			try {
-				String state = request.getParameter("state");
-				Cookie cookie = stateCookieDAO.get(request);
+			if (useSessions) {
+				return isSocialAuthManagerPresent(request.getSession());
+			} 
 				
-				if (cookie != null && state.equals(cookie.getValue())) {
-					return true;
-				} else {
-					logger.log(WARNING, 
-						"State parameter provided with callback URL, but did not match cookie. " + 
-						"State param value: " + state + " " +
-						"Cookie value: " + (cookie == null? "<no cookie>" : cookie.getValue())
-					);
+			if (!isEmpty(request.getParameter("state"))) {
+				try {
+					String state = request.getParameter("state");
+					Cookie cookie = stateCookieDAO.get(request);
+					
+					if (cookie != null && state.equals(cookie.getValue())) {
+						return true;
+					} else {
+						logger.log(WARNING, 
+							"State parameter provided with callback URL, but did not match cookie. " + 
+							"State param value: " + state + " " +
+							"Cookie value: " + (cookie == null? "<no cookie>" : cookie.getValue())
+						);
+					}
+				} finally {
+					stateCookieDAO.remove(request, response);
 				}
-			} finally {
-				stateCookieDAO.remove(request, response);
 			}
 		}
-
+		
 		return false;
 	}
+	
 	
 	private void getUserProfileFromSocialProvider(HttpServletRequest request, HttpMsgContext httpMsgContext) throws Exception {
 		SocialAuthManager socialAuthManager = getSocialAuthManager(httpMsgContext);
 
-		// For some reason this doubles as a kind of init for the SocialAuthManager instance.
-		socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + httpMsgContext.getModuleOption(CALLBACK_URL));
+		if (!useSessions) {
+			// For some reason this doubles as a kind of init for the SocialAuthManager instance. If we got
+			// a new inst
+			socialAuthManager.getAuthenticationUrl(providerId, getBaseURL(request) + callbackURL);
+		}
 	
 		AuthProvider authProvider = socialAuthManager.connect(getRequestParametersMap(request));
 
 		Profile profile = authProvider.getUserProfile();
 		request.getSession().setAttribute(SOCIAL_PROFILE, profile);
 		
-		Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(request.getParameter("state")));
-		
-		List<String> redirectUrlValues = requestStateParameters.get("redirectUrl");
-		if (!isEmpty(redirectUrlValues)) {
-			requestDAO.saveUrlOnly(request, redirectUrlValues.get(0));
+		if (!useSessions) {
+			String redirectURL = getSingleParameterFromState(request.getParameter("state"), "redirectUrl");
+			if (!isEmpty(redirectURL)) {
+				requestDAO.saveUrlOnly(request, redirectURL);
+			}
 		}
 	}
 	
@@ -212,13 +243,17 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		try {
 			if (authenticator.authenticateOrRegister(profile)) {
 				httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
+				
+				if (!useSessions) {
+					request.getSession().removeAttribute(SOCIAL_PROFILE);
+				}
 
 				return SUCCESS;
 			}
 		}
 		catch (ProfileIncompleteException e) {
-			if (e.getReason() != null && !request.getServletPath().startsWith(httpMsgContext.getModuleOption(PROFILE_INCOMPLETE_URL))) {
-				response.sendRedirect(httpMsgContext.getModuleOption(PROFILE_INCOMPLETE_URL));
+			if (e.getReason() != null && !request.getServletPath().startsWith(profileIncompleteUrl)) {
+				response.sendRedirect(profileIncompleteUrl);
 				
 				return SEND_CONTINUE;
 			}
@@ -228,7 +263,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		catch (RegistrationException e) {
 			if (e.getReason() != null) {
 				request.getSession().setAttribute(SOCIAL_PROFILE, null);
-				response.sendRedirect(httpMsgContext.getModuleOption(REGISTRATION_ERROR_URL) + "?failure-reason=" + encodeURL(e.getReason()));
+				response.sendRedirect(registrationErrorUrl + "?failure-reason=" + encodeURL(e.getReason()));
 			}
 		}
 		
@@ -254,6 +289,36 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		} else {
 			return SocialAuthManagerFactory.getSocialAuthManager();
 		}
+	}
+	
+	public static class ExtraParameters {
+		
+		private String callbackParam = "";
+		private String providerParam = "";
+		
+		public void initParams(String providerId, String callbackURL, String state) {
+			// Determine the extra parameters to send along to the provider. The provider will send these back to us.
+			if (providerId.equals("twitter")) {
+				// For OAuth1 providers like twitter, extra parameters are specified in the callback URL
+				if (callbackURL.contains("?")) {
+					callbackParam = "&state=" + state;
+				} else {
+					callbackParam = "?state=" + state;
+				}
+			} else {
+				// For OAuth2 providers like facebook and google all extra parameters are in a single parameter called state, separate from the callback URL
+				providerParam = "&state=" + state;
+			}
+		}
+		
+		public String getCallbackParam() {
+			return callbackParam;
+		}
+		
+		public String getProviderParam() {
+			return providerParam;
+		}
+		
 	}
 
 }

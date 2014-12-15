@@ -26,6 +26,6 @@ public interface TokenAuthenticator extends Authenticator {
 	
 	boolean authenticate(String token);
 	String generateLoginToken();
-	void removeLoginToken();
+	void removeLoginToken(String token);
 
 }
