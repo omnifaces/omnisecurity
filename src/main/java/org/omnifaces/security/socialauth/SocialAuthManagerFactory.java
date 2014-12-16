@@ -2,6 +2,8 @@ package org.omnifaces.security.socialauth;
 
 import static org.omnifaces.security.cdi.Beans.getReferenceOrNull;
 
+import java.util.Properties;
+
 import javax.servlet.http.HttpSession;
 
 import org.brickred.socialauth.SocialAuthConfig;
@@ -27,10 +29,19 @@ public final class SocialAuthManagerFactory {
 	public static SocialAuthManager getSocialAuthManager() {
 		try {
 			SocialAuthConfig config = new SocialAuthConfig();
-
-			// config.addProvider("twitter", StatelessTwitterImpl.class);
 			
 			SocialAuthPropertiesProvider propertiesProvider = getReferenceOrNull(SocialAuthPropertiesProvider.class);
+			
+			String twitterStatelessName = "twitter-stateless"; 
+			if (propertiesProvider != null) {
+				Properties properties = propertiesProvider.getProperties();
+				if (properties.containsKey("twitter-stateless.name")) {
+					twitterStatelessName = properties.getProperty("twitter-stateless.name");
+				}
+			}
+			
+			config.addProvider(twitterStatelessName, StatelessTwitterImpl.class);
+			
 			if (propertiesProvider != null) {
 				config.load(propertiesProvider.getProperties());
 			}

@@ -226,7 +226,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		
 		if (!useSessions) {
 			String redirectURL = getSingleParameterFromState(request.getParameter("state"), "redirectUrl");
-			if (!isEmpty(redirectURL)) {
+			if (redirectURL != null) {
 				requestDAO.saveUrlOnly(request, redirectURL);
 			}
 		}
