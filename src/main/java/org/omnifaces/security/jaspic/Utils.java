@@ -43,16 +43,16 @@ import javax.xml.bind.DatatypeConverter;
 
 /**
  * An assortment of various utility methods.
- * 
+ *
  * @author Arjan Tijms
  *
  */
 public final class Utils {
-	
+
 	private static final String ERROR_UNSUPPORTED_ENCODING = "UTF-8 is apparently not supported on this platform.";
-    
+
     private Utils() {}
-	
+
 	public static boolean notNull(Object... objects) {
 		for (Object object : objects) {
 			if (object == null) {
@@ -62,7 +62,7 @@ public final class Utils {
 
 		return true;
 	}
-	
+
 	/**
 	 * Returns true if the given string is null or is empty.
 	 *
@@ -72,7 +72,7 @@ public final class Utils {
 	public static boolean isEmpty(String string) {
 		return string == null || string.isEmpty();
 	}
-	
+
 	/**
 	 * Returns <code>true</code> if the given array is null or is empty.
 	 *
@@ -82,7 +82,7 @@ public final class Utils {
 	public static boolean isEmpty(Object[] array) {
 		return array == null || array.length == 0;
 	}
-	
+
 	/**
 	 * Returns <code>true</code> if the given collection is null or is empty.
 	 *
@@ -92,7 +92,7 @@ public final class Utils {
 	public static boolean isEmpty(Collection<?> collection) {
 		return collection == null || collection.isEmpty();
 	}
-	
+
 	/**
 	 * Returns <code>true</code> if the given object equals one of the given objects.
 	 * @param <T> The generic object type.
@@ -110,12 +110,12 @@ public final class Utils {
 
 		return false;
 	}
-	
+
 	public static String getBaseURL(HttpServletRequest request) {
 		String url = request.getRequestURL().toString();
 		return url.substring(0, url.length() - request.getRequestURI().length()) + request.getContextPath();
 	}
-	
+
 	public static void redirect(HttpServletResponse response, String location) {
 		try {
 			response.sendRedirect(location);
@@ -123,7 +123,7 @@ public final class Utils {
 			throw new IllegalStateException(e);
 		}
 	}
-	
+
 	public static String encodeURL(String string) {
 		if (string == null) {
 			return null;
@@ -136,7 +136,7 @@ public final class Utils {
 			throw new UnsupportedOperationException(ERROR_UNSUPPORTED_ENCODING, e);
 		}
 	}
-	
+
 	public static String decodeURL(String string) {
 		if (string == null) {
 			return null;
@@ -149,22 +149,22 @@ public final class Utils {
 			throw new UnsupportedOperationException(ERROR_UNSUPPORTED_ENCODING, e);
 		}
 	}
-	
+
 	public static String getSingleParameterFromState(String state, String paramName) {
 		Map<String, List<String>> requestStateParameters = getParameterMapFromState(state);
-		
+
 		List<String> parameterValues = requestStateParameters.get(paramName);
 		if (!isEmpty(parameterValues)) {
 			return parameterValues.get(0);
 		}
-		
+
 		return null;
 	}
-	
+
 	public static Map<String, List<String>> getParameterMapFromState(String state) {
 		return toParameterMap(unserializeURLSafe(state));
 	}
-	
+
 	/**
 	 * Converts the given request query string to request parameter values map.
 	 * @param queryString The request query string.
@@ -215,7 +215,19 @@ public final class Utils {
 
 		return queryString.toString();
 	}
+
+	public static String getSingleParameterFromQueryString(String queryString, String paramName) {
+		if (!isEmpty(queryString)) {
+			Map<String, List<String>> requestParameters = toParameterMap(queryString);
 	
+			if (!isEmpty(requestParameters.get(paramName))) {
+				return requestParameters.get(paramName).get(0);
+			}
+		}
+	
+		return null;
+	}
+
 	/**
 	 * Serialize the given string to the short possible unique URL-safe representation. The current implementation will
 	 * decode the given string with UTF-8 and then compress it with ZLIB using "best compression" algorithm and then
@@ -269,7 +281,7 @@ public final class Utils {
 			throw new IllegalArgumentException(e);
 		}
 	}
-	
+
 	public static long stream(InputStream input, OutputStream output) throws IOException {
 		try (ReadableByteChannel inputChannel = Channels.newChannel(input);
 			WritableByteChannel outputChannel = Channels.newChannel(output))
@@ -286,7 +298,7 @@ public final class Utils {
 			return size;
 		}
 	}
-	
+
 	/**
 	 * Read the given input stream into a byte array. The given input stream will implicitly be closed after streaming,
 	 * regardless of whether an exception is been thrown or not.

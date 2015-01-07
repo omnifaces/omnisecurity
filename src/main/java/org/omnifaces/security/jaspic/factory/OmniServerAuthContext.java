@@ -13,6 +13,7 @@
 package org.omnifaces.security.jaspic.factory;
 
 import static javax.security.auth.message.AuthStatus.FAILURE;
+import static org.omnifaces.security.jaspic.Utils.getSingleParameterFromQueryString;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
 import static org.omnifaces.security.jaspic.Utils.toParameterMap;
 import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
@@ -62,7 +63,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	public OmniServerAuthContext(CallbackHandler handler, AuthStacks stacks) throws AuthException {
 
 		this.stacks = stacks;
-		
+
 		if (stacks.getModuleStacks().size() == 1) {
 			onlyOneModule = true;
 		}
@@ -119,7 +120,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 						return authResult.getAuthStatus();
 					}
 					break;
-					
+
 				case OPTIONAL:
 					// Do nothing
 					break;
@@ -152,17 +153,18 @@ public class OmniServerAuthContext implements ServerAuthContext {
 		String authMethod = Jaspic.getAuthParameters(request).getAuthMethod();
 
 		if (authMethod == null) {
-			
+
 			// Currently depends on the auth module to set this in a callback URL.
 			// TODO: this needs much better handling
-			String state = request.getParameter("state");
+			String state = getSingleParameterFromQueryString(request.getQueryString(), "state");
+
 			if (!isEmpty(state)) {
 				Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(state));
 				if (!isEmpty(requestStateParameters.get("authMethod"))) {
 					authMethod = requestStateParameters.get("authMethod").get(0);
 				}
 			}
-			
+
 			if (authMethod == null && !onlyOneModule) {
 				authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
 			}
