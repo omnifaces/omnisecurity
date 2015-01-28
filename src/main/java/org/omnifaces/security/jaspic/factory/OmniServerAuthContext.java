@@ -166,7 +166,11 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			}
 
 			if (authMethod == null && !onlyOneModule) {
-				authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
+				try {
+					authMethod = (String) request.getSession().getAttribute(AUTH_METHOD_SESSION_NAME);
+				} catch (IllegalStateException e) {
+					// Ignore
+				}
 			}
 
 			if (authMethod == null) {
@@ -183,7 +187,11 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			// * Save auth method in session
 			// * Save auth method in cookie
 			// * Save auth method custom (use plug-in)
-			request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
+			try {
+				request.getSession().setAttribute(AUTH_METHOD_SESSION_NAME, authMethod);
+			} catch (IllegalStateException e) {
+				// Ignore
+			}
 		}
 
 		return stacks.getModuleStacks().get(authMethod);
