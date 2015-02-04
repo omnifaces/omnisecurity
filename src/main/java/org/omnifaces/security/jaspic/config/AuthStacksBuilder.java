@@ -14,6 +14,7 @@ package org.omnifaces.security.jaspic.config;
 
 import static java.util.Arrays.asList;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.REMEMBER_ME;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
 
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import javax.security.auth.message.module.ServerAuthModule;
 import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.core.ServiceType;
 import org.omnifaces.security.jaspic.wrappers.AutoRegisterSessionWrapper;
+import org.omnifaces.security.jaspic.wrappers.RememberMeWrapper;
 import org.omnifaces.security.jaspic.wrappers.SaveAndRedirectWrapper;
 
 public class AuthStacksBuilder {
@@ -96,6 +98,10 @@ public class AuthStacksBuilder {
 				
 				if (serverAuthModule.getClass().isAnnotationPresent(SamServices.class)) {
 					List<ServiceType> types = asList(serverAuthModule.getClass().getAnnotation(SamServices.class).value());
+					
+					if (types.contains(REMEMBER_ME)) {
+						wrappedServerAuthModule = new RememberMeWrapper(wrappedServerAuthModule);
+					}
 					
 					if (types.contains(SAVE_AND_REDIRECT)) {
 						wrappedServerAuthModule = new SaveAndRedirectWrapper(wrappedServerAuthModule);

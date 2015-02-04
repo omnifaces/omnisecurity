@@ -55,7 +55,11 @@ import org.omnifaces.security.jaspic.core.Jaspic;
  */
 public class OmniServerAuthContext implements ServerAuthContext {
 
-	private static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
+	// TODO: Session state needs to be handled much better. This is one of the things that has to be fixed
+	// before a 1.0 release. The below names are temporary while OmniSecurity 0.x is in alpha.
+	public static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
+	public static final String REMEMBER_ME_SESSION_NAME = "org.omnifaces.security.jaspic.RememberMe";
+	
 
 	private AuthStacks stacks;
 	private boolean onlyOneModule;

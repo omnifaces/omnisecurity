@@ -14,5 +14,6 @@ package org.omnifaces.security.jaspic.core;
 
 public enum ServiceType {
 	AUTO_REGISTER_SESSION,
-	SAVE_AND_REDIRECT
+	SAVE_AND_REDIRECT,
+	REMEMBER_ME
 }

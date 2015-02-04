@@ -12,7 +12,6 @@
  */
 package org.omnifaces.security.jaspic.authmodules;
 
-import static java.lang.Boolean.TRUE;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.cdi.Beans.getReferenceOrNull;
@@ -22,11 +21,11 @@ import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.Log
 import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.NO_LOGIN;
 import static org.omnifaces.security.jaspic.core.Jaspic.isRefresh;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.REMEMBER_ME;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
 
 import javax.enterprise.inject.spi.BeanManager;
 import javax.security.auth.message.AuthStatus;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -36,7 +35,6 @@ import org.omnifaces.security.jaspic.core.HttpMsgContext;
 import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
 import org.omnifaces.security.jaspic.core.Jaspic;
 import org.omnifaces.security.jaspic.core.SamServices;
-import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
 import org.omnifaces.security.jaspic.user.Authenticator;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernameOnlyAuthenticator;
@@ -56,10 +54,10 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  * {@link Jaspic#authenticate()} as a convenience shortcut for that.
  *
  */
-@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
+@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT, REMEMBER_ME})
 public class OmniServerAuthModule extends HttpServerAuthModule {
 	
-	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
+	// private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
 	
 	static enum LoginResult {
 		LOGIN_SUCCESS,
@@ -105,16 +103,16 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			return;
 		}
 		
-		// If there's a "remember me" cookie present, remove it.
-		Cookie cookie = cookieDAO.get(request);
-		
-		if (cookie != null) {
-			cookieDAO.remove(request, response);
-			Delegators delegators = tryGetDelegators();
-			if (delegators != null && delegators.getTokenAuthenticator() != null) {
-				delegators.getTokenAuthenticator().removeLoginToken(cookie.getValue());
-			}				
-		}
+//		// If there's a "remember me" cookie present, remove it.
+//		Cookie cookie = cookieDAO.get(request);
+//		
+//		if (cookie != null) {
+//			cookieDAO.remove(request, response);
+//			Delegators delegators = tryGetDelegators();
+//			if (delegators != null && delegators.getTokenAuthenticator() != null) {
+//				delegators.getTokenAuthenticator().removeLoginToken(cookie.getValue());
+//			}				
+//		}
 		
 	}
 	
@@ -132,7 +130,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			TokenAuthenticator tokenAuthenticator =	delegators.getTokenAuthenticator();
 			UsernameOnlyAuthenticator usernameOnlyAuthenticator = delegators.getUsernameOnlyAuthenticator();
 			
-			Cookie cookie = cookieDAO.get(request);
+//			Cookie cookie = cookieDAO.get(request);
 			
 			Authenticator authenticator = null;
 			boolean authenticated = false;
@@ -145,19 +143,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			} else if (notNull(usernameOnlyAuthenticator, authParameters.getUsername()) && authParameters.getNoPassword()) {
 				authenticated = usernameOnlyAuthenticator.authenticateWithoutPassword(authParameters.getUsername());
 				authenticator = usernameOnlyAuthenticator;
-			} else if (notNull(tokenAuthenticator, cookie)) {
-				authenticated = tokenAuthenticator.authenticate(cookie.getValue());
-				
-				if (!authenticated) {
-					// Invalid cookie, remove it
-					cookieDAO.remove(request, response);
-					
-					// Authentication via cookie is an implicit login, so if it fails we just ignore it
-					// so the flow falls-through to the normal login.
-					return NO_LOGIN;
-				} else {
-					authenticator = tokenAuthenticator;
-				}
 			} else {
 				return NO_LOGIN;
 			}
@@ -166,9 +151,9 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			    
 			    httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 				
-				if (tokenAuthenticator != null && TRUE.equals(authParameters.getRememberMe())) {
-					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
-				}
+//				if (tokenAuthenticator != null && TRUE.equals(authParameters.getRememberMe())) {
+//					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
+//				}
 				
 				return LOGIN_SUCCESS;
 			} else {

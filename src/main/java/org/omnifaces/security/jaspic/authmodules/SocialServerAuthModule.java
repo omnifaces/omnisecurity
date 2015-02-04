@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 OmniFaces.
+ * Copyright 2015 OmniFaces.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -27,7 +27,9 @@ import static org.omnifaces.security.jaspic.Utils.serializeURLSafe;
 import static org.omnifaces.security.jaspic.Utils.toQueryString;
 import static org.omnifaces.security.jaspic.core.Jaspic.isAuthenticationRequest;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
+import static org.omnifaces.security.jaspic.core.ServiceType.REMEMBER_ME;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
+import static org.omnifaces.security.jaspic.factory.OmniServerAuthContext.REMEMBER_ME_SESSION_NAME;
 import static org.omnifaces.security.socialauth.SocialAuthManagerFactory.isSocialAuthManagerPresent;
 
 import java.util.HashMap;
@@ -57,7 +59,7 @@ import org.omnifaces.security.jaspic.request.StateCookieDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
 import org.omnifaces.security.socialauth.SocialAuthManagerFactory;
 
-@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT})
+@SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT, REMEMBER_ME})
 public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	public static final Logger logger = Logger.getLogger(SocialServerAuthModule.class.getName());
@@ -143,6 +145,8 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 						
 						extraParameters.initParams(providerId, callbackURL, state);
 					}
+				} else {
+					generateSessionState(httpMsgContext);
 				}
 				
 				response.sendRedirect(
@@ -274,13 +278,25 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		Map<String, List<String>> parametersMap = new HashMap<>();
 		parametersMap.put("authMethod", asList(httpMsgContext.getAuthParameters().getAuthMethod()));
 		parametersMap.put("timeStamp", asList(currentTimeMillis() + ""));
-		
+				
 		String redirectUrl = httpMsgContext.getAuthParameters().getRedirectUrl();
     	if (redirectUrl != null) {
     		parametersMap.put("redirectUrl", asList(redirectUrl));
     	}
+    	
+    	Boolean rememberMe = httpMsgContext.getAuthParameters().getRememberMe();
+    	if (rememberMe != null) {
+    		parametersMap.put("rememberMe", asList(rememberMe.toString()));
+    	}
 		
 		return serializeURLSafe(toQueryString(parametersMap));
+	}
+	
+	private void generateSessionState(HttpMsgContext httpMsgContext) {
+		Boolean rememberMe = httpMsgContext.getAuthParameters().getRememberMe();
+		if (rememberMe != null) {
+			httpMsgContext.getRequest().getSession().setAttribute(REMEMBER_ME_SESSION_NAME, rememberMe);
+		}
 	}
 	
 	private SocialAuthManager getSocialAuthManager(HttpMsgContext httpMsgContext) {
