@@ -174,11 +174,13 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 			return false;
 		}
 		
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			// Invalidate the session so we're sure to start with a clean slate for this new login
-			session.invalidate();
-		}
+		// Temporarily disable. Consider later.
+		
+//		HttpSession session = request.getSession(false);
+//		if (session != null) {
+//			// Invalidate the session so we're sure to start with a clean slate for this new login
+//			session.invalidate();
+//		}
 		
 		return true;
 	}
