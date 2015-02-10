@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 OmniFaces.
+ * Copyright 2015 OmniFaces.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
@@ -68,7 +68,7 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 				// We were able to authenticate via the remember-me cookie, register this with the container and return
 				msgContext.registerWithContainer(tokenAuthenticator.getUserName(), tokenAuthenticator.getApplicationRoles());
 				
-				return null; // SUCCESS && abort chain
+				return SUCCESS; // return SUCCESS just as a SAM would
 			} else {
 				// Invalid cookie, remove it
 				cookieDAO.remove(msgContext.getRequest(), msgContext.getResponse());

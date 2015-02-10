@@ -63,6 +63,11 @@ public class SaveAndRedirectWrapper extends ServerAuthModuleWrapper {
             // We'll save the current request here, so we can redirect to the original URL after
             // authentication succeeds and when we start processing that URL wrap the request
             // with one containing the original headers, cookies, etc.
+			// 
+			// NOTE: This assumes that automatic session management is used (like e.g. AutoRegisterSessionWrapper does) and that the SAMs
+			// are NOT invoked when the user is authenticated and has access to the resource.
+			//
+			// TODO: Add checks is user is authenticated and deal with case where user is authenticated but doesn't have access
             if (msgContext.isProtected()) {
 
                 requestDAO.save(msgContext.getRequest());
