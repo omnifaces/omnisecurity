@@ -99,12 +99,12 @@ public class AuthStacksBuilder {
 				if (serverAuthModule.getClass().isAnnotationPresent(SamServices.class)) {
 					List<ServiceType> types = asList(serverAuthModule.getClass().getAnnotation(SamServices.class).value());
 					
-					if (types.contains(REMEMBER_ME)) {
-						wrappedServerAuthModule = new RememberMeWrapper(wrappedServerAuthModule);
-					}
-					
 					if (types.contains(SAVE_AND_REDIRECT)) {
 						wrappedServerAuthModule = new SaveAndRedirectWrapper(wrappedServerAuthModule);
+					}
+					
+					if (types.contains(REMEMBER_ME)) {
+						wrappedServerAuthModule = new RememberMeWrapper(wrappedServerAuthModule);
 					}
 					
 					if (types.contains(AUTO_REGISTER_SESSION)) {
