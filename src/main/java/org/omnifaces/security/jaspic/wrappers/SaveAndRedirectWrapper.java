@@ -71,7 +71,7 @@ public class SaveAndRedirectWrapper extends ServerAuthModuleWrapper {
             if (msgContext.isProtected()) {
 
                 requestDAO.save(msgContext.getRequest());
-                redirect(msgContext.getResponse(), getBaseURL(msgContext.getRequest()) + msgContext.getModuleOption(PUBLIC_REDIRECT_URL) + "?new=false");
+                redirect(msgContext.getRequest(), msgContext.getResponse(), getBaseURL(msgContext.getRequest()) + msgContext.getModuleOption(PUBLIC_REDIRECT_URL) + "?new=false");
 
                 return SEND_CONTINUE; // End request processing for this request and don't try to process the handler
             }

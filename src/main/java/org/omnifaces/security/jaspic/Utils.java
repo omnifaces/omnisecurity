@@ -29,10 +29,13 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -122,6 +125,55 @@ public final class Utils {
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
 		}
+	}
+	
+	public static void redirect(HttpServletRequest request, HttpServletResponse response, String location) {
+		try {
+			if (isFacesAjaxRequest(request)) {
+				response.setHeader("Cache-Control", "no-cache,no-store,must-revalidate");
+				response.setDateHeader("Expires", 0);
+				response.setHeader("Pragma", "no-cache"); // Backwards compatibility for HTTP 1.0.
+				response.setContentType("text/xml");
+				response.setCharacterEncoding(UTF_8.name());
+				response.getWriter().printf(FACES_AJAX_REDIRECT_XML, location);
+			}
+			else {
+				response.sendRedirect(location);
+			}
+		} catch (IOException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+	
+	private static final Set<String> FACES_AJAX_HEADERS = unmodifiableSet("partial/ajax", "partial/process");
+	private static final String FACES_AJAX_REDIRECT_XML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+		+ "<partial-response><redirect url=\"%s\"></redirect></partial-response>";
+	
+	public static boolean isFacesAjaxRequest(HttpServletRequest request) {
+		return FACES_AJAX_HEADERS.contains(request.getHeader("Faces-Request"));
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <E> Set<E> unmodifiableSet(Object... values) {
+		Set<E> set = new HashSet<>();
+
+		for (Object value : values) {
+			if (value instanceof Object[]) {
+				for (Object item : (Object[]) value) {
+					set.add((E) item);
+				}
+			}
+			else if (value instanceof Collection<?>) {
+				for (Object item : (Collection<?>) value) {
+					set.add((E) item);
+				}
+			}
+			else {
+				set.add((E) value);
+			}
+		}
+
+		return Collections.unmodifiableSet(set);
 	}
 
 	public static String encodeURL(String string) {
