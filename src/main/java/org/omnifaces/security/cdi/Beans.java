@@ -16,6 +16,7 @@ import java.lang.annotation.Annotation;
 
 import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
+import javax.enterprise.inject.spi.CDI;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
@@ -80,7 +81,7 @@ public class Beans {
 			context = new InitialContext();
 			return (BeanManager) context.lookup("java:comp/BeanManager");
 		} catch (NamingException e) {
-			throw new IllegalStateException(e);
+			return CDI.current().getBeanManager();
 		} finally {
 			closeContext(context);
 		}

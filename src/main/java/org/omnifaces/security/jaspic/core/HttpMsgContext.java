@@ -17,6 +17,7 @@ import static java.util.Collections.unmodifiableMap;
 import static javax.security.auth.message.AuthStatus.SEND_FAILURE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
+import static javax.servlet.http.HttpServletResponse.SC_UNAUTHORIZED;
 
 import java.io.IOException;
 import java.util.List;
@@ -223,6 +224,24 @@ public class HttpMsgContext {
      */
     public HttpServletResponse getResponse() {
         return (HttpServletResponse) messageInfo.getResponseMessage();
+    }
+    
+    /**
+     * Sets the response status to 401 (not found).
+     * <p>
+     * As a convenience this method returns SEND_FAILURE, so this method can be used in
+     * one fluent return statement from an auth module.
+     * 
+     * @return {@link AuthStatus#SEND_FAILURE}
+     */
+    public AuthStatus responseUnAuthorized() {
+    	try {
+			getResponse().sendError(SC_UNAUTHORIZED);
+		} catch (IOException e) {
+			throw new IllegalStateException(e);
+		}
+    	
+    	return SEND_FAILURE;
     }
     
     /**
