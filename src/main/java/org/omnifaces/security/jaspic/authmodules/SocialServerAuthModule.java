@@ -42,7 +42,6 @@ import javax.security.auth.message.AuthStatus;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import org.brickred.socialauth.AuthProvider;
 import org.brickred.socialauth.Profile;
@@ -65,6 +64,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 	public static final Logger logger = Logger.getLogger(SocialServerAuthModule.class.getName());
 	
 	public static final String SOCIAL_PROFILE 		  = "omnisecurity.socialProfile";
+	public static final String SOCIAL_MANAGER 		  = "omnisecurity.socialManager";
 	
 	public static final String USE_SESSIONS 		  = "useSessions";
 	public static final String CALLBACK_URL 		  = "callbackUrl";
@@ -229,6 +229,7 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 		Profile profile = authProvider.getUserProfile();
 		request.getSession().setAttribute(SOCIAL_PROFILE, profile);
+		request.getSession().setAttribute(SOCIAL_MANAGER, socialAuthManager);
 		
 		if (!useSessions) {
 			String redirectURL = getSingleParameterFromState(request.getParameter("state"), "redirectUrl");
@@ -244,10 +245,11 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 
 	private AuthStatus doSocialLogin(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		Profile profile = (Profile) request.getSession().getAttribute(SOCIAL_PROFILE);
+		SocialAuthManager socialAuthManager = (SocialAuthManager) request.getSession().getAttribute(SOCIAL_MANAGER);
 
 		SocialAuthenticator authenticator = Beans.getReference(SocialAuthenticator.class);
 		try {
-			if (authenticator.authenticateOrRegister(profile)) {
+			if (authenticator.authenticateOrRegister(socialAuthManager, profile)) {
 				httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 				
 				if (!useSessions) {
