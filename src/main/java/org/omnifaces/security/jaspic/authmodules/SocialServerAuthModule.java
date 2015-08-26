@@ -52,7 +52,6 @@ import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
 import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.exceptions.ProfileIncompleteException;
 import org.omnifaces.security.jaspic.exceptions.RegistrationException;
-import org.omnifaces.security.jaspic.request.RequestData;
 import org.omnifaces.security.jaspic.request.RequestDataDAO;
 import org.omnifaces.security.jaspic.request.StateCookieDAO;
 import org.omnifaces.security.jaspic.user.SocialAuthenticator;
@@ -134,17 +133,24 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 				if (!useSessions) {
 					
 					// Not using sessions for authentication
+
+					// TODO: Even when not explicitly set to using a session, the mechanism now uses a session anyway for
+					//       the "login to continue" feature (via the SaveAndRedirectWrapper).
+					//       We have a number of options to consider here:
+					//       1. Since sessions are used anyway, use a session here too. Replace "useSessions" boolean with method
+					//          that more dynamically checks if sessions are used at the moment
+					//       2. Let SaveAndRedirectWrapper not use the session either if the wrapped SAM does not use sessions.
+					//          A. Store the full original request data in the state request parameter (likely not so wise)
+					//          B. Store the just the target URL in the state request parameter
+					//          C. Either the A. or B. variant, but store in a cookie
 					
-					// See if we can invalidate the session so we're sure to start with a clean slate for this new login
-					if (checkSessionInvalidate(request)) {
+					// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
+					// will be compared when the callback happens to make sure the request and callback match
+					String state = generateAuthMethodState(httpMsgContext);
+					stateCookieDAO.save(request, response, state);
 					
-						// Save the auth method that we used (e.g. "facebook") together with a time stamp. The time stamp
-						// will be compared when the callback happens to make sure the request and callback match
-						String state = generateAuthMethodState(httpMsgContext);
-						stateCookieDAO.save(request, response, state);
-						
-						extraParameters.initParams(providerId, callbackURL, state);
-					}
+					extraParameters.initParams(providerId, callbackURL, state);
+
 				} else {
 					generateSessionState(httpMsgContext);
 				}
@@ -165,25 +171,25 @@ public class SocialServerAuthModule extends HttpServerAuthModule {
 		return false;
 	}
 	
-	private boolean checkSessionInvalidate(HttpServletRequest request) {
-		
-		RequestData requestData = requestDAO.get(request);
-		if (requestData != null && requestData.isRestoreRequest()) {
-			// Like the FORM authentication mechanism in Servlet, restoring a request requires the session, since
-			// it stores all request data, like POST data, headers, etc.
-			return false;
-		}
-		
-		// Temporarily disable. Consider later.
-		
-//		HttpSession session = request.getSession(false);
-//		if (session != null) {
-//			// Invalidate the session so we're sure to start with a clean slate for this new login
-//			session.invalidate();
+//	private boolean checkSessionInvalidate(HttpServletRequest request) {
+//		
+//		RequestData requestData = requestDAO.get(request);
+//		if (requestData != null && requestData.isRestoreRequest()) {
+//			// Like the FORM authentication mechanism in Servlet, restoring a request requires the session, since
+//			// it stores all request data, like POST data, headers, etc.
+//			return false;
 //		}
-		
-		return true;
-	}
+//		
+//		// Temporarily disable. Consider later.
+//		
+////		HttpSession session = request.getSession(false);
+////		if (session != null) {
+////			// Invalidate the session so we're sure to start with a clean slate for this new login
+////			session.invalidate();
+////		}
+//		
+//		return true;
+//	}
 
 	private boolean isCallbackRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) throws Exception {
 		if (request.getRequestURI().equals(callbackURL)) {
