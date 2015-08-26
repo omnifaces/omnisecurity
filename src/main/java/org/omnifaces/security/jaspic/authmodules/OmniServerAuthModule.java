@@ -19,7 +19,6 @@ import static org.omnifaces.security.jaspic.Utils.notNull;
 import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.LOGIN_FAILURE;
 import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.LOGIN_SUCCESS;
 import static org.omnifaces.security.jaspic.authmodules.OmniServerAuthModule.LoginResult.NO_LOGIN;
-import static org.omnifaces.security.jaspic.core.Jaspic.isRefresh;
 import static org.omnifaces.security.jaspic.core.ServiceType.AUTO_REGISTER_SESSION;
 import static org.omnifaces.security.jaspic.core.ServiceType.REMEMBER_ME;
 import static org.omnifaces.security.jaspic.core.ServiceType.SAVE_AND_REDIRECT;
@@ -36,7 +35,6 @@ import org.omnifaces.security.jaspic.core.HttpServerAuthModule;
 import org.omnifaces.security.jaspic.core.Jaspic;
 import org.omnifaces.security.jaspic.core.SamServices;
 import org.omnifaces.security.jaspic.user.Authenticator;
-import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernameOnlyAuthenticator;
 import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
 
@@ -56,8 +54,6 @@ import org.omnifaces.security.jaspic.user.UsernamePasswordAuthenticator;
  */
 @SamServices({AUTO_REGISTER_SESSION, SAVE_AND_REDIRECT, REMEMBER_ME})
 public class OmniServerAuthModule extends HttpServerAuthModule {
-	
-	// private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
 	
 	static enum LoginResult {
 		LOGIN_SUCCESS,
@@ -96,26 +92,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 		return SUCCESS;
 	}
 	
-	@Override
-	public void cleanHttpSubject(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
-		
-		if (isRefresh(request)) {
-			return;
-		}
-		
-//		// If there's a "remember me" cookie present, remove it.
-//		Cookie cookie = cookieDAO.get(request);
-//		
-//		if (cookie != null) {
-//			cookieDAO.remove(request, response);
-//			Delegators delegators = tryGetDelegators();
-//			if (delegators != null && delegators.getTokenAuthenticator() != null) {
-//				delegators.getTokenAuthenticator().removeLoginToken(cookie.getValue());
-//			}				
-//		}
-		
-	}
-	
 	private LoginResult isLoginRequest(HttpServletRequest request, HttpServletResponse response, HttpMsgContext httpMsgContext) {
 		Delegators delegators = tryGetDelegators();
 		
@@ -127,10 +103,7 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 		if (delegators != null) {
 			
 			UsernamePasswordAuthenticator usernamePasswordAuthenticator = delegators.getAuthenticator();
-			TokenAuthenticator tokenAuthenticator =	delegators.getTokenAuthenticator();
 			UsernameOnlyAuthenticator usernameOnlyAuthenticator = delegators.getUsernameOnlyAuthenticator();
-			
-//			Cookie cookie = cookieDAO.get(request);
 			
 			Authenticator authenticator = null;
 			boolean authenticated = false;
@@ -151,10 +124,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 			    
 			    httpMsgContext.registerWithContainer(authenticator.getUserName(), authenticator.getApplicationRoles());
 				
-//				if (tokenAuthenticator != null && TRUE.equals(authParameters.getRememberMe())) {
-//					cookieDAO.save(request, response, tokenAuthenticator.generateLoginToken());
-//				}
-				
 				return LOGIN_SUCCESS;
 			} else {
 				return LOGIN_FAILURE;
@@ -171,7 +140,6 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 
 			return new Delegators(
 				getReferenceOrNull(UsernamePasswordAuthenticator.class, beanManager),
-				getReferenceOrNull(TokenAuthenticator.class, beanManager),
 				getReferenceOrNull(UsernameOnlyAuthenticator.class, beanManager)
 			);
 		} catch (Exception e) {
@@ -182,21 +150,15 @@ public class OmniServerAuthModule extends HttpServerAuthModule {
 	private static class Delegators {
 
 		private final UsernamePasswordAuthenticator authenticator;
-		private final TokenAuthenticator tokenAuthenticator;
 		private final UsernameOnlyAuthenticator usernameOnlyAuthenticator;
 
-		public Delegators(UsernamePasswordAuthenticator authenticator, TokenAuthenticator tokenAuthenticator, UsernameOnlyAuthenticator usernameOnlyAuthenticator) {
+		public Delegators(UsernamePasswordAuthenticator authenticator, UsernameOnlyAuthenticator usernameOnlyAuthenticator) {
 			this.authenticator = authenticator;
-			this.tokenAuthenticator = tokenAuthenticator;
 			this.usernameOnlyAuthenticator = usernameOnlyAuthenticator;
 		}
 
 		public UsernamePasswordAuthenticator getAuthenticator() {
 			return authenticator;
-		}
-
-		public TokenAuthenticator getTokenAuthenticator() {
-			return tokenAuthenticator;
 		}
 
 		public UsernameOnlyAuthenticator getUsernameOnlyAuthenticator() {
