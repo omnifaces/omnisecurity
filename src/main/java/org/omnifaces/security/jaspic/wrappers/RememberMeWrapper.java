@@ -33,19 +33,22 @@ import javax.servlet.http.HttpSession;
 import org.omnifaces.security.jaspic.core.HttpMsgContext;
 import org.omnifaces.security.jaspic.core.ServerAuthModuleWrapper;
 import org.omnifaces.security.jaspic.request.LoginTokenCookieDAO;
+import org.omnifaces.security.jaspic.request.RememberMeSettingCookieDAO;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 
 public class RememberMeWrapper extends ServerAuthModuleWrapper {
-	
+
 	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
-	
+
+	private final RememberMeSettingCookieDAO rememberMeSettingCookieDAO = new RememberMeSettingCookieDAO();
+
 	private CallbackHandler handler;
 	private Map<String, String> options;
-	
+
 	public RememberMeWrapper(ServerAuthModule serverAuthModule) {
 		super(serverAuthModule);
 	}
-	
+
 	@Override
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public void initialize(MessagePolicy requestPolicy, MessagePolicy responsePolicy, CallbackHandler handler, Map options)	throws AuthException {
@@ -53,29 +56,29 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 		this.handler = handler;
 		this.options = options;
 	}
-	
+
 	@Override
 	public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
-		
+
 		HttpMsgContext msgContext = new HttpMsgContext(handler, options, messageInfo, clientSubject);
 		TokenAuthenticator tokenAuthenticator =	getReferenceOrNull(TokenAuthenticator.class);
 		Cookie cookie = cookieDAO.get(msgContext.getRequest());
-		
+
 		// First try to see if we can authenticate via a cookie
 		if (notNull(tokenAuthenticator, cookie)) {
 			if (tokenAuthenticator.authenticate(cookie.getValue())) {
-				
+
 				// We were able to authenticate via the remember-me cookie, register this with the container and return
 				msgContext.registerWithContainer(tokenAuthenticator.getUserName(), tokenAuthenticator.getApplicationRoles());
-				
+
 				return SUCCESS; // return SUCCESS just as a SAM would
 			} else {
 				// Invalid cookie, remove it
 				cookieDAO.remove(msgContext.getRequest(), msgContext.getResponse());
 			}
 		}
-				
-		// Let the next wrapper of SAM try to authenticate		
+
+		// Let the next wrapper of SAM try to authenticate
 		AuthStatus authstatus = super.validateRequest(messageInfo, clientSubject, serviceSubject);
 
 		if (tokenAuthenticator != null && authstatus == SUCCESS && isRememberMe(msgContext)) {
@@ -84,43 +87,53 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 
 		return authstatus;
 	}
-	
+
 	@Override
 	public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-		
+
 		HttpMsgContext msgContext = new HttpMsgContext(handler, options, messageInfo, subject);
-		
+
 		// If there's a "remember me" cookie present, remove it.
 		Cookie cookie = cookieDAO.get(msgContext.getRequest());
-		
+
 		if (cookie != null) {
 			cookieDAO.remove(msgContext.getRequest(), msgContext.getResponse());
-			
+
 			TokenAuthenticator tokenAuthenticator =	getReferenceOrNull(TokenAuthenticator.class);
-						
+
 			if (tokenAuthenticator != null) {
 				tokenAuthenticator.removeLoginToken(cookie.getValue());
-			}				
+			}
 		}
-		
+
 		super.cleanSubject(messageInfo, subject);
 	}
-	
+
 	public boolean isRememberMe(HttpMsgContext msgContext) {
-		
+
 		// TODO: handle state better
-		
+
 		if (msgContext.getAuthParameters().getRememberMe() != null) {
 			return msgContext.getAuthParameters().getRememberMe();
 		}
-		
+
 		if (msgContext.getRequest().getParameter("state") != null) {
 			String rememberMe = getSingleParameterFromState(msgContext.getRequest().getParameter("state"), "rememberMe");
 			if (rememberMe != null) {
 				return Boolean.valueOf(rememberMe);
 			}
 		}
-		
+
+		Cookie rememberMeSettingCookie = rememberMeSettingCookieDAO.get(msgContext.getRequest());
+		if (rememberMeSettingCookie != null) {
+			try {
+				return Boolean.valueOf(rememberMeSettingCookie.getValue());
+			}
+			finally {
+				rememberMeSettingCookieDAO.remove(msgContext.getRequest(), msgContext.getResponse());
+			}
+		}
+
 		HttpSession session = msgContext.getRequest().getSession(false);
 		if (session != null) {
 			Boolean rememberMe = (Boolean) session.getAttribute(REMEMBER_ME_SESSION_NAME);
@@ -128,8 +141,8 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 				return rememberMe;
 			}
 		}
-		
-		return false;		
+
+		return false;
 	}
-	
+
 }
