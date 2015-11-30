@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.factory;
 
+import static java.util.logging.Level.FINE;
 import static javax.security.auth.message.AuthStatus.FAILURE;
 import static org.omnifaces.security.jaspic.Utils.getSingleParameterFromQueryString;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
@@ -20,6 +21,7 @@ import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -59,7 +61,8 @@ public class OmniServerAuthContext implements ServerAuthContext {
 	// before a 1.0 release. The below names are temporary while OmniSecurity 0.x is in alpha.
 	public static final String AUTH_METHOD_SESSION_NAME = "org.omnifaces.security.jaspic.AuthMethod";
 	public static final String REMEMBER_ME_SESSION_NAME = "org.omnifaces.security.jaspic.RememberMe";
-	
+
+	private static final Logger logger = Logger.getLogger(OmniServerAuthContext.class.getName());
 
 	private AuthStacks stacks;
 	private boolean onlyOneModule;
@@ -163,9 +166,15 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			String state = getSingleParameterFromQueryString(request.getQueryString(), "state");
 
 			if (!isEmpty(state)) {
-				Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(state));
-				if (!isEmpty(requestStateParameters.get("authMethod"))) {
-					authMethod = requestStateParameters.get("authMethod").get(0);
+				try {
+					Map<String, List<String>> requestStateParameters = toParameterMap(unserializeURLSafe(state));
+					if (!isEmpty(requestStateParameters.get("authMethod"))) {
+						authMethod = requestStateParameters.get("authMethod")
+						                                   .get(0);
+					}
+				}
+				catch (IllegalArgumentException e) {
+					logger.log(FINE, "Unable to decode state parameter:", e);
 				}
 			}
 
