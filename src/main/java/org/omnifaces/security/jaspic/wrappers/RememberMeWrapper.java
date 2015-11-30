@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.wrappers;
 
+import static java.util.logging.Level.FINE;
 import static javax.security.auth.message.AuthStatus.SUCCESS;
 import static org.omnifaces.security.cdi.Beans.getReferenceOrNull;
 import static org.omnifaces.security.jaspic.Utils.getSingleParameterFromState;
@@ -19,6 +20,7 @@ import static org.omnifaces.security.jaspic.Utils.notNull;
 import static org.omnifaces.security.jaspic.factory.OmniServerAuthContext.REMEMBER_ME_SESSION_NAME;
 
 import java.util.Map;
+import java.util.logging.Logger;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
@@ -37,6 +39,8 @@ import org.omnifaces.security.jaspic.request.RememberMeSettingCookieDAO;
 import org.omnifaces.security.jaspic.user.TokenAuthenticator;
 
 public class RememberMeWrapper extends ServerAuthModuleWrapper {
+
+	private static final Logger logger = Logger.getLogger(RememberMeWrapper.class.getName());
 
 	private final LoginTokenCookieDAO cookieDAO = new LoginTokenCookieDAO();
 
@@ -118,9 +122,14 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 		}
 
 		if (msgContext.getRequest().getParameter("state") != null) {
-			String rememberMe = getSingleParameterFromState(msgContext.getRequest().getParameter("state"), "rememberMe");
-			if (rememberMe != null) {
-				return Boolean.valueOf(rememberMe);
+			try {
+				String rememberMe = getSingleParameterFromState(msgContext.getRequest().getParameter("state"), "rememberMe");
+				if (rememberMe != null) {
+					return Boolean.valueOf(rememberMe);
+				}
+			}
+			catch (IllegalArgumentException e) {
+				logger.log(FINE, "Unable to decode state parameter", e);
 			}
 		}
 
