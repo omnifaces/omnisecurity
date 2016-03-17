@@ -85,7 +85,7 @@ public class RememberMeWrapper extends ServerAuthModuleWrapper {
 		// Let the next wrapper of SAM try to authenticate
 		AuthStatus authstatus = super.validateRequest(messageInfo, clientSubject, serviceSubject);
 
-		if (tokenAuthenticator != null && authstatus == SUCCESS && isRememberMe(msgContext)) {
+		if (tokenAuthenticator != null && authstatus == SUCCESS && tokenAuthenticator.getUserName() != null && isRememberMe(msgContext)) {
 			cookieDAO.save(msgContext.getRequest(), msgContext.getResponse(), tokenAuthenticator.generateLoginToken());
 		}
 
