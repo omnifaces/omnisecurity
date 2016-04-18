@@ -19,6 +19,7 @@ import static org.omnifaces.security.jaspic.Utils.isEmpty;
 import static org.omnifaces.security.jaspic.Utils.toParameterMap;
 import static org.omnifaces.security.jaspic.Utils.unserializeURLSafe;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -207,7 +208,7 @@ public class OmniServerAuthContext implements ServerAuthContext {
 			}
 		}
 
-		return stacks.getModuleStacks().get(authMethod);
+		return stacks.getModuleStacks().getOrDefault(authMethod, Collections.<Module>emptyList());
 	}
 
 }
