@@ -12,6 +12,7 @@
  */
 package org.omnifaces.security.jaspic.request;
 
+import java.io.Serializable;
 import static org.omnifaces.security.jaspic.Utils.isEmpty;
 
 import java.util.List;
@@ -27,7 +28,7 @@ import javax.servlet.http.HttpServletRequest;
  * @author Arjan Tijms
  *
  */
-public class RequestData {
+public class RequestData implements Serializable {
 
 	private Cookie[] cookies;
 	private Map<String, List<String>> headers;
